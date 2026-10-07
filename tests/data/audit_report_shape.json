@@ -1,0 +1,152 @@
+{
+  "schema": "str",
+  "tool_version": "str",
+  "generated_at": "str",
+  "protocol": {
+    "id": "str",
+    "version": "str",
+    "max_defensible_claim": "str",
+    "limitations": [
+      "str"
+    ],
+    "background": [
+      "str"
+    ]
+  },
+  "question": {
+    "family": "str",
+    "text": "str",
+    "context": {
+      "molecule": "str"
+    },
+    "assumptions": []
+  },
+  "execution": {
+    "status": "str",
+    "checks": [
+      {
+        "rule_id": "str",
+        "scope": "str",
+        "status": "str",
+        "message": "str",
+        "fact_ids": [
+          "str"
+        ]
+      }
+    ]
+  },
+  "structure": {
+    "status": "str",
+    "checks": [
+      {
+        "rule_id": "str",
+        "scope": "str",
+        "status": "str",
+        "message": "str",
+        "fact_ids": [
+          "str"
+        ]
+      }
+    ]
+  },
+  "methodology": {
+    "status": "str",
+    "checks": []
+  },
+  "evidence": {
+    "overall_status": "str",
+    "hypotheses": [
+      {
+        "hypothesis_id": "str",
+        "statement": "str",
+        "status": "str",
+        "rationale": "str",
+        "claims": [
+          {
+            "claim_id": "str",
+            "statement": "str",
+            "status": "str",
+            "rationale": "str",
+            "requirements": [
+              {
+                "requirement_id": "str",
+                "status": "str",
+                "rationale": "str",
+                "evidence_ids": [
+                  "str"
+                ],
+                "missing_evidence_types": [],
+                "blocked_by": [],
+                "expert_review_required": "bool",
+                "met_via_alternative": "NoneType"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "recommendations": [
+    {
+      "id": "str",
+      "action": "str",
+      "rationale": "str",
+      "addresses_requirement_ids": [
+        "str"
+      ],
+      "priority": "int"
+    }
+  ],
+  "trace": [
+    {
+      "source": "str",
+      "relation": "str",
+      "target": "str"
+    }
+  ],
+  "inventory": {
+    "facts": [
+      {
+        "id": "str",
+        "key": "str",
+        "value": "str",
+        "unit": "NoneType",
+        "subject": {
+          "calculation_id": "str",
+          "state": "NoneType",
+          "mode_index": "NoneType"
+        },
+        "epistemic_kind": "str",
+        "provenance": {
+          "source_file": "str",
+          "producer": "str",
+          "producer_version": "str",
+          "source_location": "str",
+          "extracted_at": "str"
+        }
+      }
+    ],
+    "evidence": [
+      {
+        "id": "str",
+        "evidence_type": "str",
+        "description": "str",
+        "fact_ids": [
+          "str"
+        ],
+        "strength": "str",
+        "directness": "str",
+        "origin": "str",
+        "source_file": "str"
+      }
+    ],
+    "unavailable": [
+      {
+        "key": "str",
+        "reason": "str",
+        "source_file": "str"
+      }
+    ]
+  },
+  "disclaimer": "str"
+}

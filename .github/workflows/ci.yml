@@ -1,0 +1,64 @@
+name: CI
+
+# Python support policy. This list is the single source of truth for the interpreter matrix, and
+# `tests/test_ci_configuration.py` asserts that it agrees with the classifiers and
+# `requires-python` in pyproject.toml, so the three cannot drift apart.
+#
+#   supported: 3.12 (the floor) and 3.13
+#
+# A real corpus of ORCA output is not committed. `Test` fetches it and runs against it; when the
+# fetch is unavailable the real-corpus tests skip themselves rather than fail, and `Lint & types`
+# says so out loud.
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+env:
+  SUPPORTED_PYTHON: '["3.12", "3.13"]'
+
+jobs:
+  lint:
+    name: Lint & types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Ruff lint
+        run: ruff check --output-format=github .
+      - name: Mypy (strict)
+        run: mypy src/qcjudge
+      # `ruff format --check` is deliberately absent. Formatting was never adopted and the tree
+      # is therefore a mix of styles, so gating on it would fail on arrival rather than guard
+      # anything. D-33 in the working plan records this as a choice to revisit, not an oversight.
+
+  test:
+    name: Test (${{ matrix.os }}, ${{ matrix.python-version }})
+    needs: lint
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ${{ fromJSON(env.SUPPORTED_PYTHON) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+      - name: Fetch the real ORCA corpus (optional)
+        continue-on-error: true
+        run: python tools/fetch_benchmark_data.py
+      - name: Pytest
+        run: pytest -q

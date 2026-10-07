@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Real computational-chemistry output is never committed. It is fetched on demand by
+# tools/fetch_benchmark_data.py and verified against tools/benchmark_manifest.json.
+.benchmark-data/
+
+# Local scratch
+scratch/
+*.local
+
+# Scratch root for `QCJUDGE_TEST_SCRATCH`, used where the system temporary directory is not
+# usable. See tests/conftest.py.
+.test-scratch/

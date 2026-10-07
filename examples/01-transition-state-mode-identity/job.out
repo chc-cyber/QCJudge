@@ -1,0 +1,48 @@
+                  *****************
+                  * O   R   C   A *
+                  *****************
+
+Program Version 5.0.4 - RELEASE
+
+------------------
+INPUT FILE
+------------------
+|  1> ! B3LYP def2-TZVP OPT FREQ
+|  2> * xyz 0 1
+|  3> C  0.000000  0.000000  0.000000
+|  4> C  0.000000  0.000000  1.530000
+|  5> *
+|  6>
+
+Total Charge    Charge    0
+Multiplicity    Mult    1
+
+SCF CONVERGED AFTER  14 CYCLES
+
+<S**2>                :     0.000000
+
+------------------------------
+VIBRATIONAL FREQUENCIES
+------------------------------
+   0:       0.00 cm**-1
+   1:       0.00 cm**-1
+   2:       0.00 cm**-1
+   3:       0.00 cm**-1
+   4:       0.00 cm**-1
+   5:       0.00 cm**-1
+   6:    -412.57 cm**-1
+   7:     190.35 cm**-1
+   8:     402.18 cm**-1
+   9:     615.90 cm**-1
+  10:     812.44 cm**-1
+  11:     964.71 cm**-1
+  12:    1103.58 cm**-1
+  13:    1240.06 cm**-1
+  14:    1408.33 cm**-1
+  15:    1633.90 cm**-1
+  16:    3120.77 cm**-1
+  17:    3210.15 cm**-1
+
+THE OPTIMIZATION HAS CONVERGED
+
+ORCA TERMINATED NORMALLY

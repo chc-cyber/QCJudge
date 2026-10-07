@@ -1,0 +1,14 @@
+# Line endings are normalised so the golden report files compare byte for byte.
+#
+# `tests/data/report_*.txt` is compared with `==` against freshly rendered output, and
+# `tests/data/audit_report_shape.json` is parsed. On a Windows checkout with `core.autocrlf=true`
+# an unnormalised file would arrive with CRLF, the golden text tests would fail on a clean clone,
+# and the failure would look like a rendering regression rather than a checkout setting.
+* text=auto eol=lf
+
+# Byte-exact fixtures: never touch these on the way through git.
+tests/data/** -text
+
+# Windows-only helper scripts, if any are ever added.
+*.bat text eol=crlf
+*.cmd text eol=crlf

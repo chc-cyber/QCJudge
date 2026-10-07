@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+title: QCJudge
+message: "If you use QCJudge, please cite the software using this metadata."
+type: software
+authors:
+  - name: QCJudge contributors
+version: 0.1.0-dev
+date-released: 2026-09-09
+license: BSD-3-Clause
+repository-code: "https://github.com/qcjudge/qcjudge"
+
