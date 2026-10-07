@@ -30,6 +30,14 @@ def report_to_text(report: AuditReport) -> str:
     if context:
         lines.append(f"context: {context}")
     lines.append(f"protocol: {report.protocol_id} {report.protocol_version}")
+    if report.selected_calculation_ids:
+        lines.append("audit calculations: " + ", ".join(report.selected_calculation_ids))
+    if report.association_issue:
+        lines.append("target association unresolved: " + report.association_issue)
+    for key, value in report.conditions:
+        lines.append(f"reported condition: {key}={value}")
+    for flag in report.expert_reviews:
+        lines.append(f"reported expert boundary: {flag.requirement_id}: {flag.reported_condition}")
     if report.max_defensible_claim:
         lines.append(f"this protocol supports at most: {report.max_defensible_claim}")
 

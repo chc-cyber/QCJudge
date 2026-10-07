@@ -19,7 +19,8 @@ QCJudge scientific audit
 Question
 Is the singlet-triplet gap small enough for this molecule to show TADF?
 context: molecule=dvb
-protocol: tadf 1.0.0
+protocol: tadf 1.1.0
+audit calculations: calc-1
 
 Execution validity
 PASS

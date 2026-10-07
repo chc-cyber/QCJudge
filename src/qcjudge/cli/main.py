@@ -93,6 +93,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="question context used to bind protocol claims, e.g. molecule=molA",
     )
     audit_parser.add_argument(
+        "--target",
+        default=None,
+        metavar="CALCULATION_ID",
+        help="select one calculation and its linked analyses when several are supplied",
+    )
+    audit_parser.add_argument(
         "--assumption",
         action="append",
         default=[],
@@ -233,11 +239,21 @@ def _question(args: argparse.Namespace) -> ResearchQuestion:
     asked = args.ask.strip() if isinstance(args.ask, str) else ""
     if args.ask is not None and not asked:
         raise ValueError("--ask was given an empty question")
+    context = _parse_context(args.context)
+    if args.target is not None:
+        target = args.target.strip()
+        if not target:
+            raise ValueError("--target was given an empty calculation ID")
+        declared = dict(context).get("calculation_id")
+        if declared is not None and declared != target:
+            raise ValueError("--target conflicts with context calculation_id")
+        if declared is None:
+            context = (*context, ("calculation_id", target))
     return ResearchQuestion(
         family=family,
         text=asked or protocol.hypotheses[0].statement,
         hypotheses=hypotheses,
-        context=_parse_context(args.context),
+        context=context,
         assumptions=assumptions,
     )
 

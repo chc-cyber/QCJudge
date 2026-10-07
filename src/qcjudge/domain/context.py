@@ -36,6 +36,7 @@ class AuditContext:
     # fire on the situation it describes rather than on a guess about the numbers.
     conditions: Mapping[str, str] = field(default_factory=dict)
     expert_reviews: tuple[ExpertReviewFlag, ...] = ()
+    association_issue: str | None = None
 
     def fact_values(self, key: FactKey) -> tuple[object, ...]:
         """Values recorded for a fact key, in inventory order."""

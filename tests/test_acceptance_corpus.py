@@ -154,7 +154,10 @@ def test_tadf_with_inconsistent_methods_requires_expert_review() -> None:
         tadf_question(),
         inventory(
             *tadf_facts(),
-            fact(FactKey.METHOD_NAME, "M06-2X", calculation_id="calc-2"),
+            fact(
+                FactKey.METHOD_NAME, "M06-2X", calculation_id="calc-2",
+                source_calculation_id="calc-1",
+            ),
             evidence_items=(tadf_gap_evidence(), tadf_soc_evidence()),
         ),
     )

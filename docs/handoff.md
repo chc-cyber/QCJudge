@@ -1,9 +1,8 @@
 # QCJudge — agent handoff
 
-Written at the end of a review-and-repair series that took the project from "declarative but not
-operative" to M4 complete. Everything below was measured in that session, not transcribed from the
-plan. Where the plan and this file disagree, this file is the newer measurement and the plan entry
-should be corrected.
+Updated 2026-10-07 after the M5 hardening pass. M0-M4 are complete; M5 is in progress.
+The local measurements below include the real ORCA corpus. Where the plan and this file disagree,
+use this file's latest measurement and correct the plan.
 
 Read `docs/v0.1-plan.md` for the debt register and milestone gates, `docs/architecture.md` for the
 durable architecture, and this file for "where it actually is right now and what will bite you".
@@ -46,8 +45,9 @@ The sharpest consequence is the distinction between:
 - `NOT_ASSESSABLE` — a claim about **epistemic access**: we could not read what was provided.
 
 Conflating them either hides a missing calculation or blames the researcher for a gap in our own
-reader. Which one fires is decided by the parser's `UnavailableReason` per fact, never by the audit
-engine.
+reader. Missing-data classification follows the reader's `UnavailableReason` per fact. Explicitly
+ambiguous target association or an impossible requested state index also makes a scientific
+requirement `NOT_ASSESSABLE`; this is declared and tested separately from execution success.
 
 ## 3. Immutable design rules
 
@@ -91,34 +91,36 @@ Each stage has exactly one owner. This is the spine.
 Derived outputs — missing evidence, recommended next step, rendered explanation — are projections
 of the stage-9 result, never new reasoning.
 
-### 4.2 Module map (38 source files, ~3,900 lines)
+### 4.2 Module map (40 source files)
 
 ```
-cli/main.py             argparse only; exit-code policy; no science        (275)
-render/text.py          human-readable report                              ( 67)
-render/json_report.py   the stable machine-readable contract               (160)
+cli/main.py             argparse, target selection and exit-code policy
+render/text.py          human-readable report
+render/json_report.py   versioned machine-readable contract
 
-audit/engine.py         orchestration only; no rule or requirement ids     (131)
-audit/aggregation.py    requirement -> claim -> hypothesis -> overall      (151)
-audit/trace.py          the inspectable why-chain                          ( 51)
+audit/engine.py         orchestration only; no rule or requirement ids
+audit/aggregation.py    requirement -> claim -> hypothesis -> overall
+audit/trace.py          the inspectable why-chain
 
-evidence/matching.py    requirement -> evidence, groups, dependencies      (373)
-evidence/derivation.py  facts -> evidence at protocol-declared strengths   ( 90)
-evidence/facts/projection.py  Observation -> ExtractedFact + arithmetic    (349)
+evidence/matching.py    requirements, groups, dependencies and association gate
+evidence/derivation.py  facts -> evidence with protocol strengths and value predicates
+evidence/selection.py   explicit calculation links and target scope
+evidence/facts/projection.py  observations -> facts, absences and arithmetic
 
-adapters/json_analysis.py   the documented external-analysis import        (254)
+adapters/json_analysis.py   validated external-analysis import
 
-parsers/base.py         the reader contract                                ( 21)
-parsers/orca.py         the declared ORCA subset                           (750)
+parsers/base.py         the reader contract
+parsers/orca.py         the declared ORCA subset, first identifiable execution only
 
-validators/registry.py  implementation_key -> rule callable                ( 26)
-validators/collect.py   fact reading + absence explanation                 ( 55)
-validators/execution.py convergence and Hessian order                      (111)
-validators/methodology.py consistency checks                               ( 59)
+validators/registry.py  implementation_key -> rule callable
+validators/collect.py   fact reading + absence explanation
+validators/execution.py convergence and Hessian order
+validators/methodology.py consistency checks
+validators/target_state.py explicit S/T index bounds, without interpreting state identity
 
-protocols/v1.py         the three built-in protocols                       (538)
+protocols/v1.py         the three built-in protocols, currently version 1.1.0
 
-domain/                 pure types; imports nothing but stdlib + errors  (~1,150)
+domain/                pure types; imports nothing but stdlib + errors
 ```
 
 ### 4.3 Dependency direction (enforced by `tests/test_layering.py`)
@@ -175,14 +177,28 @@ objects.
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Tests | `pytest` | **380 collected: 378 passed, 2 skipped, 0 failed** |
-| Types | `mypy --strict src/qcjudge` | clean, **38 files** |
+| Tests | `python -m pytest -q -rs` | **548 collected: 546 passed, 2 skipped, 0 failed** |
+| Types | `mypy --strict src/qcjudge` | clean, **40 files** |
 | Lint | `ruff check .` | clean |
 | Format | `ruff format --check` | **not a gate** — see D-33 |
-| Repository | `git status` | **no `.git`; git is not installed on this machine** |
+| Real corpus | `python tools/fetch_benchmark_data.py --verify` | all 12 pinned files verified |
+| Packaging | wheel build, independent install and isolated CLI check | `0.1.0.dev1` verified |
+| Repository | local Git on `main` | baseline `22c0d25` plus this hardening change; no remote configured |
 
-The 2 skips are `tests/test_real_orca_output.py` entries that need a corpus file not present; the
-other 73 items in that file run against the fetched corpus.
+Both skips are the root-facade cases in `tests/test_layering.py`: the package root has no declared
+import restrictions. The previous handoff incorrectly attributed them to missing corpus files.
+All real-corpus tests run in this measurement. This is Windows/Python 3.12 validation; it is not
+evidence that the full remote OS/Python matrix has passed.
+
+Current compatibility identifiers: package `0.1.0.dev1`, report `qcjudge.audit_report/2`, built-in
+protocols `1.1.0`, ORCA parser `0.4.0`, analysis adapter `0.2.0`. Schema 2 adds audit scope,
+full researcher inputs and subject association fields; consumers of schema 1 need an update.
+
+The final wheel at `.test-scratch/dist-final/qcjudge-0.1.0.dev1-py3-none-any.whl` was installed
+in a fresh independent environment; `python -I tools/verify_installed_package.py` passed. All
+40 packaged Python modules match the final source byte-for-byte. Wheel SHA-256:
+`78303e077ac716d96804e7b565c27a345c035ead89399147096e43c6e7bdcd97`. The scratch
+artifact is ignored and is not a published release.
 
 ### 5.2 Milestones
 
@@ -194,7 +210,7 @@ other 73 items in that file run against the fetched corpus.
 | M2.5 End-to-end status correctness | complete |
 | M3 CLI and reports | complete |
 | M4 Adapter seam | complete |
-| M5 Hardening and release | **partly done** — CI defined and tested but never run; no property tests; no tag |
+| M5 Hardening and release | **in progress** — hardening and local wheel verified; remote CI, property tests, cross-version replay and tag pending |
 | M6 LLM layer | not started, deferred by design |
 
 ### 5.3 Substantive defects found and closed (D-23 … D-32)
@@ -237,6 +253,31 @@ did not describe, so an unverified file was indistinguishable from a verified on
 fired), `max_defensible_claim_strength`, `limitations`, `background`, and eleven
 `insufficiency_conditions` across six requirements. All are now consumed.
 
+The 2026-10-07 hardening closes D-34 through D-40 (see the plan for the register):
+
+- False IRC, zero excitation count and zero SOC are retained as facts without becoming positive
+  evidence. These are protocol-declared predicates, not engine branches or universal size cutoffs.
+- Every result has a distinct calculation ID. Analyses attach through `source_calculation_id`;
+  reusing a calculation ID is rejected. Multiple independent roots require `--target` or
+  `--context calculation_id=...`. The selector includes explicit descendants and refuses missing
+  parents, cycles, or conflicting molecule/state metadata. Missing optional labels are not guessed.
+  Link-graph consistency is checked before selection, so an invalid unrelated link is still refused.
+- Selected evidence alone drives validation and matching; the report retains the full inventory.
+  An unlinked analysis cannot silently support a parsed calculation.
+- All ORCA facts are scoped to the first identifiable execution, including completion markers,
+  method, charge, multiplicity, SCF, frequencies and excited-state lists. Ambiguous compound input
+  with no reliable boundary withholds scientific observations rather than combining jobs.
+- Imported quantities have per-key types, finite values, exact units and domain bounds. Zero count
+  remains a valid fact; booleans cannot bypass numerical validation or unit checks.
+- CT rejects explicit impossible S/T indices. Positive total counts give only a necessary upper
+  bound and never assign spin character. An explicitly empty target manifold cannot be rescued
+  by a positive total count; zero/empty sources without positive assignment remain coverage gaps.
+  D-21 remains: choosing the scientifically relevant state needs more than an index check.
+- Schema 2 records every supplied researcher condition, expert flag and association field, including
+  inputs not consumed by a rule. This does not yet implement raw-input/checksum replay.
+- The CI strategy now uses a legal direct matrix; each test job builds and independently checks a
+  wheel. These steps are verified locally, while the actual remote matrix remains pending.
+
 ### 5.4 Evidence coverage — measured, and the key number for a successor
 
 **9 of 16 accepted evidence types still have no producer.** This is the single most useful measure
@@ -278,28 +319,27 @@ Design rules that must not be relaxed:
 Licence position: Multiwfn is not OSI-approved. The adapter consumes exported text and never
 bundles or links it.
 
-### 5.6 Test suite (31 files)
+### 5.6 Test suite
 
 By purpose, in the order they are worth reading:
 
-| File | Items | Why it exists |
-| --- | --- | --- |
-| `test_acceptance_corpus.py` | 20 | The scenario matrix. Proves technical success ≠ scientific sufficiency. |
-| `test_audit_separation.py` | 12 | The independence property as examples. |
-| `test_layering.py` | 79 | The import-boundary matrix over every source file. |
-| `test_real_orca_output.py` | 75 | The parser against real ORCA 2.6–5.0 output. |
-| `test_orca_parser.py` | 25 | The parser contract on synthetic fixtures. |
-| `test_end_to_end.py` | 23 | **Crosses the parser→audit boundary.** See §7. |
-| `test_adapter.py` | 25 | The import seam, mostly refusals. |
-| `test_protocols.py` | 23 | Protocol graph integrity. |
-| `test_cli.py` | 16 | Exit-code policy and both researcher channels. |
-| `test_golden_report.py` | 14 | JSON shape + byte-for-byte text snapshots. |
-| `test_ci_configuration.py` | 14 | Holds the workflow to its own claims. |
-| `test_inventory.py` | 14 | Domain invariants. |
-| `test_derivation.py` | 13 | Declared strengths, origin inheritance. |
-| `test_examples.py` | 11 | The examples keep producing their documented verdicts. |
-| `test_insufficiency_conditions.py` | 9 | D-32's behaviour. |
-| `test_fetch_benchmark_data.py` | 7 | The manifest refusal rules. |
+| File | Why it exists |
+| --- | --- |
+| `test_acceptance_corpus.py` | Scenario matrix: technical success is independent of scientific sufficiency. |
+| `test_audit_separation.py` | The independence property as examples. |
+| `test_layering.py` | Import-boundary matrix over the source tree. |
+| `test_real_orca_output.py` | Real ORCA 2.6-5.0 outputs from the pinned corpus. |
+| `test_orca_parser.py`, `test_orca_job_boundaries.py` | Reader contract and complete/truncated/compound job isolation. |
+| `test_end_to_end.py` | Parser-to-audit boundary. |
+| `test_adapter.py` | External import types, units, bounds and provenance. |
+| `test_target_association.py` | Actual pipeline target links, ambiguity, metadata and CLI selection. |
+| `test_fact_predicates.py` | False IRC, zero states and signed/nonzero SOC through actual audits. |
+| `test_target_state.py` | Impossible indices, manifold bounds and zero-source coverage gaps. |
+| `test_protocols.py`, `test_inventory.py`, `test_derivation.py` | Domain/protocol integrity and declared strengths. |
+| `test_cli.py`, `test_golden_report.py`, `test_examples.py` | CLI policy, report schema and documented examples. |
+| `test_insufficiency_conditions.py` | D-32's report behaviour. |
+| `test_ci_configuration.py` | Actual matrix values and wheel-check commands/order. |
+| `test_fetch_benchmark_data.py` | Manifest refusal rules. |
 
 Support modules: `tests/support.py` (hand-built inventories), `tests/golden.py` (the one
 deterministic report), `tests/conftest.py` (scratch routing, §6.2).
@@ -308,41 +348,30 @@ deterministic report), `tests/conftest.py` (scratch routing, §6.2).
 
 ## 6. Current difficulties
 
-### 6.1 BLOCKED — no git repository, and CI has never run (D-13)
+### 6.1 PENDING EXTERNAL INPUT — actual remote CI (D-13)
 
-**Concrete condition.** `git --version` fails; `Get-Command git` finds nothing; searching both
-`C:\` and `E:\` for `git.exe` returns nothing. Git is not installed on this machine.
+Git 2.53.0 is installed and the local repository is initialized on `main`. The pre-hardening
+M4 baseline is commit `22c0d25`; this hardening is recorded separately. There is no configured
+remote. A GitHub repository URL is needed before publishing this checkout and running Actions.
+The user was asked for that destination while local work continued.
 
-**What that prevents.** `git init`, the first commit, and therefore the first real execution of
-`.github/workflows/ci.yml`. The project has no history at all.
+Ready locally:
 
-**What is already in place, ready to commit:**
+- `.gitignore` excludes the venv, corpus, test/build scratch, caches and local `.workbuddy` memory.
+- `.gitattributes` normalizes LF and preserves byte-for-byte fixtures with `tests/data/** -text`.
+- `.github/workflows/ci.yml` checks lint/types and tests Python 3.12/3.13 on Linux/macOS/Windows.
+  Every test job also builds a wheel, replaces the editable installation from that local wheel,
+  and runs `python -I tools/verify_installed_package.py` against the real CLI example.
+- Real corpus fetch is optional (`continue-on-error`); unavailable network means corpus tests skip.
+  A green build without the corpus is weaker than a run that includes it.
 
-- `.gitignore` — venv, caches, `.benchmark-data/`, `.test-scratch/`
-- `.gitattributes` — LF normalisation, with `tests/data/**` marked `-text` because those fixtures
-  are compared byte for byte. Without this a Windows checkout with `core.autocrlf=true` fails the
-  golden text tests on a clean clone, and the failure looks like a rendering regression.
-- `.github/workflows/ci.yml` — ruff + mypy + pytest on Python 3.12 and 3.13 across Linux, macOS and
-  Windows, with the real ORCA corpus fetched as a `continue-on-error` step that cannot fail the
-  build.
-- `tests/test_ci_configuration.py` — 14 tests holding the workflow to its own claims.
+**Configuration tests and a local wheel check are not a green remote matrix.** After the intended
+repository is supplied, configure its remote, push `main`, inspect the actual Actions run and fix
+any OS/Python-specific failures. Do not tag `v0.1.0` merely because the local run passed.
 
-**Do not mistake the last item for a green build.** The workflow configuration is *tested*; it has
-never *executed*. That distinction is recorded in the plan's M3 gate note and in D-13.
-
-**What is needed.** On a machine with git:
-
-```console
-git init
-git add .
-git commit -m "QCJudge v0.1 foundation through M4"
-git remote add origin <url>
-git push -u origin main
-```
-
-Then confirm the workflow runs green. That first run also executes the 75 real-corpus items
-automatically for the first time — roughly a fifth of the suite that currently only runs where
-someone has fetched the corpus.
+The local sandbox created `.git` under a different Windows owner. Host Git required the exact
+`E:/QCJudge` path in `safe.directory`; no wildcard trust or global author identity was configured.
+Commits in this session use per-command `Codex <codex@localhost>` attribution.
 
 ### 6.2 The sandbox could not list pytest's temporary directory
 
@@ -423,45 +452,48 @@ Two smaller lessons, both paid for:
 
 Ordered by value, with the honest reason for each.
 
-### 8.1 Needs a decision or an external machine
+### 8.1 Release work, in recommended order
 
-1. **D-13 — create the repository.** Three commands on a git-capable machine, then confirm the
-   workflow runs green. Blocks nothing else in the code but blocks reproducible history, the CI
-   matrix, and automatic execution of the real-corpus tests.
-2. **D-33 — decide formatting.** Either adopt `ruff format` (format the whole tree in the same
-   change, then add the gate) or leave it explicitly out. Currently "out", recorded as a decision.
-3. **D-32 residual — machine-readable "provided but not inspected".** `ts.mode_identity` declares no
-   `required_facts`, so the engine cannot tell that the frequency calculation *was* supplied and only
-   the inspection is missing. The protocol's prose covers it; the machine-readable distinction does
-   not exist. Designing it means deciding how a requirement states "this was provided but is
-   unusable", which the domain model cannot currently express.
+1. **D-13: run actual remote CI.** Obtain the intended GitHub destination, push the existing local
+   history, and inspect all six OS/Python test combinations plus lint/types and installed-wheel
+   checks. Record whether the real corpus was available.
+2. **Generative property tests.** Exercise association graphs, fact predicates, absence projection
+   and aggregation; preserve execution/evidence independence and prohibit cross-root support.
+3. **Replay contract.** Record raw input checksums and all audit arguments, then verify a saved
+   report can be replayed by a later version. Schema 2's researcher inputs are necessary but not
+   sufficient for this gate.
+4. **Broader expert-labelled cases.** Add redacted real examples covering failed IRC, state identity,
+   mixed jobs and weak/zero coupling; keep labels and scientific assumptions reviewable.
+5. **Release review and `v0.1.0` tag.** Check dependency/attribution documentation, schema migration
+   guidance and every M5 gate. Keep the current `0.1.0.dev1` designation until they pass.
 
-### 8.2 Optional scope, each a further fact key rather than a seam change
+### 8.2 Accepted documentation/design debt
 
-4. `risc_rate` (`s**-1`) and `vibronic_coupling_analysis` producers for TADF.
-5. `reaction_path_following` as distinct from IRC, and `attachment_detachment_density` for CT.
-6. `method_comparison` / `range_separation_validation` — these assert something *about* the
-   calculation rather than describing an analysis, so they need thought about whether they belong in
-   the adapter seam at all.
+- **D-33: formatting.** Currently excluded from gates. Adopt it only with a complete formatting
+  change and the matching CI policy update.
+- **D-32 residual: machine-readable "provided but not inspected".** `ts.mode_identity` has no
+  `required_facts`, so this distinction is prose rather than a machine-readable predicate.
 
-### 8.3 M5 remainder
+### 8.3 Optional scientific scope
 
-7. Property tests (`hypothesis`) for the projection and matcher.
-8. Redacted real-world outputs beyond the current corpus.
-9. Dependency and attribution documentation for the adapter seam.
-10. `v0.1.0` tag — not before D-13.
+- `risc_rate`, `vibronic_coupling_analysis`, `reaction_path_following` and
+  `attachment_detachment_density` each need a reviewable new fact contract.
+- `method_comparison` and `range_separation_validation` need a decision about whether an assertion
+  about a calculation belongs in the same import seam as a recorded analysis.
+- Numerical D/Sr presence is not a universal CT-character threshold. Keep state interpretation and
+  the adequacy of a nonzero SOC as explicit scientific limitations rather than inventing cutoffs.
 
 ### 8.4 Deliberately not started
 
-11. **M6 LLM layer**, shipped as an optional extra the core never imports. Gate: removing the extra
-    leaves the entire suite green.
+**M6 LLM layer**, shipped as an optional extra the core never imports. Gate: removing the extra
+leaves the entire test suite green. Continue M5 before expanding to this layer.
 
 ### 8.5 Open debt carried deliberately (D-19 … D-22)
 
 | ID | Sev | Note |
 | --- | --- | --- |
 | D-19 | L | Claims bind through string templates, so an under-specified question fails at audit time rather than question construction. Fails loudly and names the missing keys; acceptable for V0.1. |
-| D-20 | M | A multi-job file contributes only its first command line, so method and basis describe that job alone. Found on `ORCA4.2/long-input.out` (200 jobs). Frequency blocks were fixed for this reason (D-28); method/basis were not. |
+| D-20 | M | Deliberate first-job subset: a multi-job file contributes only its first identifiable execution. All scientific observations and completion checks now share that scope (D-36); later jobs need a separate input rather than being merged. |
 | D-21 | M | Which states are "the relevant S1 and T1" is a claim-level question the derivation does not answer. Asserting the lowest singlet and triplet would be a judgement. |
 | D-22 | L | `FREQUENCY_EXPECTED_MODE_COUNT` is never produced, because 3N-6 needs an atom count and a linearity determination the parser does not make. Mode-list completeness therefore rests on the file-level truncation check alone. |
 
@@ -502,10 +534,11 @@ uv pip install --python .venv/Scripts/python.exe -e ".[dev]"
 
 If `tmp_path` tests error at setup, add `QCJUDGE_TEST_SCRATCH=./.test-scratch` (§6.2).
 
-Fetch the real corpus to widen coverage by ~75 items:
+Fetch and verify the real corpus (it is present for the measurements above):
 
 ```console
 .venv/Scripts/python tools/fetch_benchmark_data.py
+.venv/Scripts/python tools/fetch_benchmark_data.py --verify
 ```
 
 Run one audit end to end and read the report:
@@ -540,4 +573,6 @@ from `evidence.overall_status` in `--format json`.
 7. `tests/test_end_to_end.py` and `tests/test_acceptance_corpus.py` — the behaviour that must hold.
 8. `docs/adapter-format.md` if touching imported analyses.
 
-Then run the three gates before changing anything, so you know the baseline is green.
+Then run the three gates before changing anything, so you know the baseline is green. For release
+validation, build and install the wheel in an independent environment and run
+`python -I tools/verify_installed_package.py`; the CI workflow contains the exact sequence.

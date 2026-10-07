@@ -73,6 +73,11 @@ def derive_evidence(
             available = grouped[calculation_id]
             if not all(key in available for key in derivation.required_fact_keys):
                 continue
+            if not all(
+                predicate.accepts(available[predicate.key].value)
+                for predicate in derivation.fact_predicates
+            ):
+                continue
             derived.append(
                 Evidence(
                     id=f"derived:{derivation.id}:{calculation_id}",

@@ -60,13 +60,16 @@ def fact(
     calculation_id: str = CALCULATION_ID,
     unit: str | None = None,
     kind: EpistemicKind = EpistemicKind.COMPUTED_FACT,
+    source_calculation_id: str | None = None,
 ) -> ExtractedFact:
     return ExtractedFact(
         id=f"{calculation_id}:{key.value}",
         key=key,
         value=value,
         unit=unit,
-        subject=Subject(calculation_id=calculation_id),
+        subject=Subject(
+            calculation_id=calculation_id, source_calculation_id=source_calculation_id
+        ),
         provenance=provenance(),
         epistemic_kind=kind,
     )

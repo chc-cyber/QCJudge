@@ -98,7 +98,7 @@ def test_requesting_expert_review_survives_both_renderings(tmp_path: Path) -> No
 
 def test_the_schema_string_is_pinned(report) -> None:
     """A consumer keys off this; changing it is a breaking change, not a detail."""
-    assert SCHEMA == "qcjudge.audit_report/1"
+    assert SCHEMA == "qcjudge.audit_report/2"
     assert report_to_dict(report)["schema"] == SCHEMA
 
 
@@ -107,6 +107,8 @@ def test_key_order_is_stable_at_the_top_level(report) -> None:
         "schema",
         "tool_version",
         "generated_at",
+        "audit_scope",
+        "researcher_inputs",
         "protocol",
         "question",
         "execution",

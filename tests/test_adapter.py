@@ -20,6 +20,7 @@ from qcjudge.domain.evidence import EvidenceInventory, EvidenceOrigin, FactKey
 from qcjudge.domain.question import Hypothesis, QuestionFamily, ResearchQuestion
 from qcjudge.errors import (
     AdapterFormatError,
+    InventoryError,
     UnknownExportedQuantityError,
     WrongUnitError,
 )
@@ -163,6 +164,45 @@ def test_several_calculations_stay_separate(tmp_path: Path) -> None:
     assert len(inventory.facts) == 2
 
 
+def test_independent_exports_cannot_merge_through_a_default_calculation_id(
+    tmp_path: Path,
+) -> None:
+    """Disjoint keys must not hide an ID collision and assemble a positive verdict."""
+    assignment = _export(
+        tmp_path,
+        name="assignment.json",
+        calculations=[
+            {
+                "values": {
+                    "scf.converged": {"value": True, "unit": "none"},
+                    "tddft.state_count": {"value": 5, "unit": "states"},
+                }
+            }
+        ],
+    )
+    descriptor = _export(
+        tmp_path,
+        name="descriptor.json",
+        calculations=[
+            {
+                "values": {
+                    "hole_electron.d_index_angstrom": {"value": 2.41, "unit": "angstrom"},
+                    "hole_electron.sr_index": {"value": 0.31, "unit": "none"},
+                }
+            }
+        ],
+    )
+
+    with pytest.raises(InventoryError, match=r"[Cc]alculation ID"):
+        _audit_with_imports(
+            tmp_path,
+            QuestionFamily.CHARGE_TRANSFER_EXCITATION,
+            None,
+            [assignment, descriptor],
+            (("molecule", "dvb"), ("state", "S1")),
+        )
+
+
 def test_an_exact_unit_equivalence_is_converted(tmp_path: Path) -> None:
     """Bohr to angstrom is exact arithmetic, so it needs no judgement."""
     path = _export(
@@ -297,6 +337,218 @@ def test_a_non_numeric_value_is_refused(tmp_path: Path) -> None:
     )
 
     with pytest.raises(AdapterFormatError, match="must be a number"):
+        ADAPTER.parse_all(path)
+
+
+@pytest.mark.parametrize(
+    ("quantity", "unit"),
+    [
+        ("tddft.state_count", "states"),
+        ("hole_electron.d_index_angstrom", "angstrom"),
+        ("hole_electron.sr_index", "dimensionless"),
+        ("nto.dominant_pair_contribution", "dimensionless"),
+        ("spin_orbit.coupling_cm1", "cm**-1"),
+    ],
+    ids=["count", "distance", "overlap", "nto", "soc"],
+)
+@pytest.mark.parametrize("value", [True, False])
+def test_a_boolean_cannot_enter_the_audit_as_a_number(
+    tmp_path: Path, quantity: str, unit: str, value: bool
+) -> None:
+    """JSON flags must not become distances, fractions, couplings, or state assignments."""
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {quantity: {"value": value, "unit": unit}}}],
+    )
+
+    with pytest.raises(AdapterFormatError):
+        _audit_with_imports(
+            tmp_path,
+            QuestionFamily.CHARGE_TRANSFER_EXCITATION,
+            None,
+            [path],
+            (("molecule", "dvb"), ("state", "S1")),
+        )
+
+
+@pytest.mark.parametrize("quantity", ["scf.converged", "irc.connects_two_minima"])
+@pytest.mark.parametrize("value", [0, 1, 0.0, 1.0, "true", None])
+def test_a_flag_requires_a_json_boolean(
+    tmp_path: Path, quantity: str, value: object
+) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {quantity: {"value": value, "unit": "none"}}}],
+    )
+
+    with pytest.raises(AdapterFormatError, match="must be a boolean"):
+        ADAPTER.parse_all(path)
+
+
+@pytest.mark.parametrize("quantity", ["scf.converged", "irc.connects_two_minima"])
+@pytest.mark.parametrize("value", [True, False])
+def test_a_boolean_still_requires_a_dimensionless_unit(
+    tmp_path: Path, quantity: str, value: bool
+) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {quantity: {"value": value, "unit": "angstrom"}}}],
+    )
+
+    with pytest.raises(WrongUnitError, match="angstrom"):
+        ADAPTER.parse_all(path)
+
+
+@pytest.mark.parametrize("value", [-1, 0.5, 1.0, float("inf"), float("nan")])
+def test_a_state_count_requires_a_non_negative_integer(tmp_path: Path, value: object) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {"tddft.state_count": {"value": value, "unit": "states"}}}],
+    )
+
+    with pytest.raises(AdapterFormatError, match="non-negative integer"):
+        _audit_with_imports(
+            tmp_path,
+            QuestionFamily.CHARGE_TRANSFER_EXCITATION,
+            None,
+            [path],
+            (("molecule", "dvb"), ("state", "S1")),
+        )
+
+
+def test_a_zero_state_count_remains_an_integer_fact(tmp_path: Path) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {"tddft.state_count": {"value": 0, "unit": "count"}}}],
+    )
+    results, carried = ADAPTER.parse_all(path)
+    fact = _project(results, carried).facts[0]
+
+    assert fact.value == 0
+    assert type(fact.value) is int
+
+
+@pytest.mark.parametrize(
+    ("quantity", "unit"),
+    [
+        ("hole_electron.d_index_angstrom", "angstrom"),
+        ("hole_electron.sr_index", "dimensionless"),
+        ("nto.dominant_pair_contribution", "dimensionless"),
+        ("spin_orbit.coupling_cm1", "cm**-1"),
+    ],
+    ids=["distance", "overlap", "nto", "soc"],
+)
+@pytest.mark.parametrize(
+    "value",
+    [float("nan"), float("inf"), -float("inf"), 10**400],
+    ids=["nan", "inf", "negative-inf", "integer-overflow"],
+)
+def test_non_finite_numbers_cannot_enter_an_audit(
+    tmp_path: Path, quantity: str, unit: str, value: float | int
+) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {quantity: {"value": value, "unit": unit}}}],
+    )
+
+    with pytest.raises(AdapterFormatError, match="finite number"):
+        _audit_with_imports(
+            tmp_path,
+            QuestionFamily.CHARGE_TRANSFER_EXCITATION,
+            None,
+            [path],
+            (("molecule", "dvb"), ("state", "S1")),
+        )
+
+
+@pytest.mark.parametrize(
+    ("quantity", "value", "unit", "error"),
+    [
+        ("hole_electron.d_index_angstrom", -0.1, "angstrom", "non-negative"),
+        ("hole_electron.sr_index", -0.1, "none", "between 0 and 1"),
+        ("hole_electron.sr_index", 1.1, "none", "between 0 and 1"),
+        ("nto.dominant_pair_contribution", -0.1, "none", "between 0 and 1"),
+        ("nto.dominant_pair_contribution", 1.1, "none", "between 0 and 1"),
+    ],
+)
+def test_descriptors_outside_their_physical_domains_are_refused(
+    tmp_path: Path, quantity: str, value: float, unit: str, error: str
+) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {quantity: {"value": value, "unit": unit}}}],
+    )
+
+    with pytest.raises(AdapterFormatError, match=error):
+        ADAPTER.parse_all(path)
+
+
+@pytest.mark.parametrize(
+    ("quantity", "value", "unit"),
+    [
+        ("hole_electron.d_index_angstrom", 0.0, "bohr"),
+        ("hole_electron.sr_index", 0.0, "none"),
+        ("hole_electron.sr_index", 1.0, "none"),
+        ("nto.dominant_pair_contribution", 0.0, "none"),
+        ("nto.dominant_pair_contribution", 1.0, "none"),
+        ("spin_orbit.coupling_cm1", -12.4, "cm-1"),
+    ],
+)
+def test_domain_boundaries_and_signed_couplings_are_preserved(
+    tmp_path: Path, quantity: str, value: float, unit: str
+) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[{"values": {quantity: {"value": value, "unit": unit}}}],
+    )
+    results, _carried = ADAPTER.parse_all(path)
+
+    assert results[0].observations[0].value == value
+
+
+def test_explicit_analysis_subject_links_are_preserved(tmp_path: Path) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[
+            {
+                "calculation_id": "hole-electron-analysis",
+                "source_calculation_id": "dvb-calculation",
+                "molecule": "dvb",
+                "state": "S1",
+                "values": {"hole_electron.sr_index": {"value": 0.3, "unit": "none"}},
+            }
+        ],
+    )
+    results, carried = ADAPTER.parse_all(path)
+    result = results[0]
+
+    assert result.calculation_id == "hole-electron-analysis"
+    assert result.source_calculation_id == "dvb-calculation"
+    assert result.molecule == "dvb"
+    assert result.state == "S1"
+    subject = _project(results, carried).facts[0].subject
+    assert subject.calculation_id == "hole-electron-analysis"
+    assert subject.source_calculation_id == "dvb-calculation"
+    assert subject.molecule == "dvb"
+    assert subject.state == "S1"
+
+
+@pytest.mark.parametrize("name", ["source_calculation_id", "molecule", "state"])
+@pytest.mark.parametrize("value", ["", "  ", None, 7, True, ["dvb"]])
+def test_explicit_analysis_subject_links_require_non_empty_strings(
+    tmp_path: Path, name: str, value: object
+) -> None:
+    path = _export(
+        tmp_path,
+        calculations=[
+            {
+                name: value,
+                "values": {"hole_electron.sr_index": {"value": 0.3, "unit": "none"}},
+            }
+        ],
+    )
+
+    with pytest.raises(AdapterFormatError, match=f"{name!r} must be a non-empty string"):
         ADAPTER.parse_all(path)
 
 
@@ -527,6 +779,7 @@ def test_a_full_supported_verdict_is_reachable_for_every_family(tmp_path: Path) 
                 calculations=[
                     {
                         "calculation_id": "soc",
+                        "source_calculation_id": "calc-1",
                         "values": {
                             "spin_orbit.coupling_cm1": {"value": 12.4, "unit": "cm**-1"}
                         },
@@ -547,6 +800,7 @@ def test_a_full_supported_verdict_is_reachable_for_every_family(tmp_path: Path) 
                 calculations=[
                     {
                         "calculation_id": "irc",
+                        "source_calculation_id": "calc-1",
                         "values": {
                             "scf.converged": {"value": True, "unit": "none"},
                             "irc.connects_two_minima": {"value": True, "unit": "none"},
@@ -576,6 +830,7 @@ def test_a_mixed_audit_keeps_the_two_provenances_apart(tmp_path: Path) -> None:
                 calculations=[
                     {
                         "calculation_id": "soc",
+                        "source_calculation_id": "calc-1",
                         "values": {
                             "spin_orbit.coupling_cm1": {"value": 12.4, "unit": "cm**-1"}
                         },
@@ -614,6 +869,7 @@ def test_irc_evidence_reaches_a_saddle_through_the_declared_group(tmp_path: Path
                 calculations=[
                     {
                         "calculation_id": "irc",
+                        "source_calculation_id": "calc-1",
                         "values": {
                             "scf.converged": {"value": True, "unit": "none"},
                             "irc.connects_two_minima": {"value": True, "unit": "none"},

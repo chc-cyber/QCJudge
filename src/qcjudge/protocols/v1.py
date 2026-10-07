@@ -18,6 +18,8 @@ from qcjudge.domain.evidence import (
     EvidenceStrength,
     EvidenceType,
     FactKey,
+    FactPredicate,
+    FactPredicateOperator,
     GroupSatisfaction,
     RequirementLevel,
     RequirementRole,
@@ -55,7 +57,7 @@ _CT_CHARACTER_CLAIM = Claim(
 
 CHARGE_TRANSFER_V1 = ScientificProtocol(
     id="charge_transfer",
-    version="1.0.0",
+    version="1.1.0",
     question_family=QuestionFamily.CHARGE_TRANSFER_EXCITATION,
     hypotheses=(_CT_HYPOTHESIS,),
     claims=(_CT_STATE_CLAIM, _CT_CHARACTER_CLAIM),
@@ -68,7 +70,7 @@ CHARGE_TRANSFER_V1 = ScientificProtocol(
             role=RequirementRole.PREREQUISITE,
             accepted_evidence_types=(EvidenceType.EXCITED_STATE_ASSIGNMENT,),
             required_facts=(FactKey.EXCITED_STATE_COUNT,),
-            gating_rules=("exec.scf",),
+            gating_rules=("exec.scf", "method.ct_target_state"),
             insufficiency_conditions=(
                 "No excited-state calculation was provided.",
                 "Excited states were computed but not identified.",
@@ -118,6 +120,13 @@ CHARGE_TRANSFER_V1 = ScientificProtocol(
     validation_rules=(
         _SCF_RULE,
         ValidationRuleSpec(
+            "method.ct_target_state",
+            METHODOLOGY,
+            "Check that the requested excitation index is not ruled out by supplied states.",
+            "ct_target_state_exists",
+            "An index within the available range does not resolve state character or identity.",
+        ),
+        ValidationRuleSpec(
             "method.ct_sensitivity",
             METHODOLOGY,
             "Flag methodological sensitivity that is relevant to long-range charge transfer.",
@@ -141,6 +150,9 @@ CHARGE_TRANSFER_V1 = ScientificProtocol(
             id="ct.state_assignment_from_excited_states",
             evidence_type=EvidenceType.EXCITED_STATE_ASSIGNMENT,
             required_fact_keys=(FactKey.EXCITED_STATE_COUNT,),
+            fact_predicates=(
+                FactPredicate(FactKey.EXCITED_STATE_COUNT, FactPredicateOperator.POSITIVE_INTEGER),
+            ),
             description=(
                 "An excited-state calculation reported states with energies and oscillator "
                 "strengths. This identifies the states by index and energy; it says nothing "
@@ -227,7 +239,7 @@ _TADF_EMISSIVE_CLAIM = Claim(
 
 TADF_V1 = ScientificProtocol(
     id="tadf",
-    version="1.0.0",
+    version="1.1.0",
     question_family=QuestionFamily.TADF_POTENTIAL,
     hypotheses=(_TADF_HYPOTHESIS,),
     claims=(_TADF_GAP_CLAIM, _TADF_RISC_CLAIM, _TADF_EMISSIVE_CLAIM),
@@ -338,6 +350,11 @@ TADF_V1 = ScientificProtocol(
             id="tadf.risc_from_spin_orbit_coupling",
             evidence_type=EvidenceType.SPIN_ORBIT_COUPLING,
             required_fact_keys=(FactKey.SPIN_ORBIT_COUPLING_CM1,),
+            fact_predicates=(
+                FactPredicate(
+                    FactKey.SPIN_ORBIT_COUPLING_CM1, FactPredicateOperator.NONZERO_FINITE,
+                ),
+            ),
             description=(
                 "An external analysis exported a computed spin-orbit coupling between the "
                 "relevant singlet and triplet states. This is evidence that the spin-forbidden "
@@ -392,7 +409,7 @@ _TS_PATHWAY_CLAIM = Claim(
 
 TRANSITION_STATE_V1 = ScientificProtocol(
     id="transition_state",
-    version="1.0.0",
+    version="1.1.0",
     question_family=QuestionFamily.TRANSITION_STATE_VALIDATION,
     hypotheses=(_TS_HYPOTHESIS,),
     claims=(_TS_SADDLE_CLAIM, _TS_PATHWAY_CLAIM),
@@ -514,6 +531,9 @@ TRANSITION_STATE_V1 = ScientificProtocol(
             id="ts.pathway_from_irc",
             evidence_type=EvidenceType.IRC,
             required_fact_keys=(FactKey.IRC_CONNECTS_TWO_MINIMA,),
+            fact_predicates=(
+                FactPredicate(FactKey.IRC_CONNECTS_TWO_MINIMA, FactPredicateOperator.IS_TRUE),
+            ),
             description=(
                 "An intrinsic-reaction-coordinate run was followed downhill from the saddle "
                 "point and reached two distinct minima, one on each side. This is the part an "

@@ -5,11 +5,12 @@ Design rules this module follows:
 * It reports only what it can point at. Every observation carries a line number.
 * It never guesses. Where a value could be one of several things, the key is reported as
   ``AMBIGUOUS_MATCH`` rather than resolved by preference.
-* It distinguishes what it cannot read from what was never computed. A file that ended
-  without ORCA's normal-termination marker is ``TRUNCATED``, and everything missing from it
-  is reported as ``FILE_TRUNCATED``; a complete file missing a value reports
-  ``NOT_PROVIDED``.
+* It distinguishes what it cannot read from what was never computed. A selected job that
+  ended without a normal-termination marker or an explicit transition to the next compound
+  job is ``TRUNCATED``; a complete job missing a value reports ``NOT_PROVIDED``.
 * It reports blocks it recognises but does not read, so its own limitations are visible.
+* Every scientific observation belongs to the first job. Later jobs cannot contribute a
+  convergence flag, method, Hessian, or excited-state manifold to that job.
 
 The marker strings below are this parser's entire knowledge of ORCA. They were derived by
 inspecting real output rather than assumed: ``tests/test_real_orca_output.py`` checks them
@@ -17,9 +18,9 @@ against a pinned subset of the ``cclib-data`` corpus, covering ORCA 2.6 through 
 that corpus has been fetched. Where a construct is version-dependent and the parser cannot
 read it, the key is reported as unsupported rather than approximated.
 
-Known limits, deliberate and visible: the first excited-state block found is used, so a file
-containing several manifolds contributes the singlet and triplet manifests separately but not
-their cross terms; and ``FREQUENCY_EXPECTED_MODE_COUNT`` is not attempted, because deriving
+Known limits, deliberate and visible: only the first job and its first excited-state block per
+manifold are read. Compound jobs need explicit ``JOB NUMBER`` execution boundaries; ambiguous
+compound output is withheld. ``FREQUENCY_EXPECTED_MODE_COUNT`` is not attempted, because deriving
 3N-6 needs an atom count and a linearity determination that this parser does not make.
 """
 
@@ -51,6 +52,26 @@ _RECOGNITION_MARKERS = (
 )
 
 _TERMINATION_MARKER = "ORCA TERMINATED NORMALLY"
+_TERMINATION_LINE = re.compile(
+    r"^[ \t]*\**[ \t]*ORCA TERMINATED NORMALLY[ \t]*\**[ \t]*$", re.MULTILINE
+)
+
+# Independent runs repeat their startup headings. Compound runs instead print one input
+# echo for every job followed by explicitly numbered execution sections. These are actual
+# output boundaries, unlike an echoed $new_job directive, which only declares future work.
+_RUN_HEADINGS = (
+    re.compile(r"^[ \t]*\*[ \t]*O[ \t]+R[ \t]+C[ \t]+A[ \t]*\*[ \t]*$", re.MULTILINE),
+    re.compile(r"^[ \t]*Program Version[ \t]+[\d.]+[^\n]*$", re.MULTILINE),
+    re.compile(r"^[ \t]*INPUT FILE[ \t]*$", re.MULTILINE),
+)
+_COMPOUND_JOB = re.compile(
+    r"^[ \t]*\${2,}[ \t]*JOB NUMBER[ \t]+(?P<number>\d+)[ \t]*\${2,}[ \t]*$",
+    re.MULTILINE,
+)
+_NEW_JOB_DIRECTIVE = re.compile(
+    r"^[ \t]*(?:\|?[ \t]*\d+>[ \t]*)?\$new_job\b[^\n]*$",
+    re.MULTILINE | re.IGNORECASE,
+)
 
 _VERSION = re.compile(r"Program Version\s+([\d.]+)")
 
@@ -219,6 +240,124 @@ def _find(text: str, marker: str) -> int | None:
     return None if match is None else match.start()
 
 
+def _mask_region(text: str, start: int, end: int) -> str:
+    """Hide another job's input without moving any source line or character offset."""
+    # A non-whitespace mask also prevents older row patterns using \s* from scanning
+    # thousands of blank input lines repeatedly in large compound exports.
+    return text[:start] + re.sub(r"[^\r\n]", "~", text[start:end]) + text[end:]
+
+
+def _mask_compound_basis(text: str, execution_start: int) -> str:
+    """Do not borrow a successor's basis from the shared compound preamble.
+
+    ORCA can print basis setup for every job before any execution starts. The first
+    printed basis is usable only when it agrees with the first job's own unique basis
+    keyword; otherwise the usual input-keyword fallback remains, or the basis is unknown.
+    A basis printed inside the selected execution is unaffected.
+    """
+    requested = _distinct(
+        [
+            token
+            for match in _INPUT_ECHO.finditer(text, 0, execution_start)
+            if match.group(1).startswith("!")
+            for token in match.group(1).lstrip("!").split()
+            if _is_basis(token)
+        ]
+    )
+    printed = list(_PRINTED_BASIS.finditer(text, 0, execution_start))
+    for index in range(len(printed) - 1, -1, -1):
+        match = printed[index]
+        if index == 0 and len(requested) == 1 and match.group(1).lower() == requested[0].lower():
+            continue
+        text = _mask_region(text, match.start(), match.end())
+    return text
+
+
+def _has_later_job_output(text: str) -> bool:
+    """Recognise scientific output after a run, allowing its ordinary timing footer."""
+    patterns = (
+        *_RUN_HEADINGS,
+        _COMPOUND_JOB,
+        _NEW_JOB_DIRECTIVE,
+        _FREQUENCY_BLOCK,
+        _EXCITED_BLOCK,
+        _ABSORPTION_HEADER,
+        _CHARGE,
+        _MULTIPLICITY,
+        _INPUT_ECHO,
+        _SPIN,
+        _PRINTED_BASIS,
+        _TERMINATION_LINE,
+    )
+    return any(pattern.search(text) for pattern in patterns) or any(
+        _find(text, marker) is not None
+        for marker in (*_SCF_SUCCESS, *_SCF_FAILURE, *_OPT_SUCCESS, *_OPT_FAILURE)
+    )
+
+
+def _first_job(
+    text: str,
+) -> tuple[str, ParseOutcome, tuple[str, ...], bool]:
+    """Select one execution, preserving offsets and never borrowing its successor's end.
+
+    The final flag means compound work was declared but its executed jobs cannot be
+    separated. Identity may still be recorded, but scientific values must be withheld.
+    """
+    terminations = list(_TERMINATION_LINE.finditer(text))
+    termination = terminations[0] if terminations else None
+    repeated = [
+        matches[1].start()
+        for heading in _RUN_HEADINGS
+        if len(matches := list(heading.finditer(text))) > 1
+    ]
+    end = min(repeated, default=len(text))
+    completed = termination is not None and termination.start() < end
+    if completed and termination is not None:
+        end = termination.end()
+
+    # Restrict compound detection to this independent run: a compound successor must not
+    # retroactively change the interpretation of the selected first run.
+    compound = list(_COMPOUND_JOB.finditer(text, 0, end))
+    directive = _NEW_JOB_DIRECTIVE.search(text, 0, end)
+    ambiguous = (directive is not None and not compound) or (
+        bool(compound) and compound[0].group("number") != "1"
+    )
+    if len(compound) > 1:
+        end = compound[1].start()
+        # ORCA starting the next numbered job is an explicit end of the first execution,
+        # even when a later job was interrupted before the entire compound run terminated.
+        completed = True
+
+    selected = text[:end]
+    if directive is not None and compound and directive.start() < compound[0].start():
+        # Later jobs' echoed charge, multiplicity, and keywords are future inputs, not
+        # observations of the first execution. Keep the common preamble and first input.
+        selected = _mask_region(selected, directive.start(), compound[0].start())
+    if compound:
+        selected = _mask_compound_basis(selected, compound[0].start())
+
+    warnings: list[str] = []
+    if ambiguous:
+        warnings.append(
+            "The file contains compound work, but the first JOB NUMBER execution boundary "
+            "could not be identified. Scientific observations were withheld because "
+            "they cannot be attributed to one job."
+        )
+    elif end < len(text) and _has_later_job_output(text[end:]):
+        warnings.append(
+            "The file contains more than one job; only the first execution was read, up to "
+            "its termination marker or explicit job boundary. Later convergence, method, "
+            "frequency, and excited-state output was ignored."
+        )
+        if _FREQUENCY_BLOCK.search(text[end:]):
+            warnings.append(
+                "Later vibrational frequency blocks were ignored at the first job's "
+                "termination marker or execution boundary."
+            )
+    outcome = ParseOutcome.COMPLETE if completed else ParseOutcome.TRUNCATED
+    return selected, outcome, tuple(warnings), ambiguous
+
+
 def _is_basis(token: str) -> bool:
     lowered = token.lower()
     return any(lowered.startswith(prefix) for prefix in _BASIS_PREFIXES)
@@ -325,7 +464,7 @@ class OrcaOutputParser:
     """Reads a declared subset of ORCA output. Reports, never concludes."""
 
     name = "qcjudge.orca"
-    version = "0.3.0"
+    version = "0.4.0"
 
     @property
     def supported_keys(self) -> frozenset[FactKey]:
@@ -366,20 +505,31 @@ class OrcaOutputParser:
                 ),
             )
 
-        terminated = _TERMINATION_MARKER in text
-        outcome = ParseOutcome.COMPLETE if terminated else ParseOutcome.TRUNCATED
+        selected, outcome, boundary_warnings, ambiguous = _first_job(text)
         collector = _Collector(
             source_file, self.name, self.version, _line_starts(text), outcome, extracted_at
         )
+        collector.warnings.extend(boundary_warnings)
 
-        self._collect_identity(collector, text)
-        self._collect_system(collector, text)
-        self._collect_convergence(collector, text)
-        self._collect_spin(collector, text)
-        self._collect_frequencies(collector, text)
-        self._collect_excited_states(collector, text)
-        self._collect_oscillator_strengths(collector, text)
-        self._collect_method_and_basis(collector, text)
+        self._collect_identity(collector, selected)
+        if ambiguous:
+            for key in sorted(self.supported_keys, key=lambda item: item.value):
+                if key in {FactKey.SOFTWARE_NAME, FactKey.SOFTWARE_VERSION}:
+                    continue
+                collector.unavailable(
+                    key,
+                    UnavailableReason.UNSUPPORTED_CONSTRUCT,
+                    "Compound jobs were declared, but their execution boundaries could not "
+                    "be identified, so this value cannot be assigned to one calculation.",
+                )
+        else:
+            self._collect_system(collector, selected)
+            self._collect_convergence(collector, selected)
+            self._collect_spin(collector, selected)
+            self._collect_frequencies(collector, selected)
+            self._collect_excited_states(collector, selected)
+            self._collect_oscillator_strengths(collector, selected)
+            self._collect_method_and_basis(collector, selected)
 
         return ParseResult(
             source_file=source_file,
@@ -769,7 +919,7 @@ class _Collector:
         if outcome is ParseOutcome.TRUNCATED:
             self.default_reason = UnavailableReason.FILE_TRUNCATED
             self.warnings.append(
-                "The file does not contain ORCA's normal-termination marker, so it appears "
+                "The selected job does not contain ORCA's normal-termination marker, so it appears "
                 "to be truncated; missing values are reported as unreadable rather than as "
                 "not provided."
             )

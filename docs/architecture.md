@@ -10,9 +10,9 @@ Serialization can be added at the boundary later without making serialized data 
 The intended dependency direction is:
 
 ```text
-CLI -> audit engine -> domain + protocols + validators
-                    -> parser interfaces <- ORCA parser
-                    -> adapter interfaces <- Multiwfn/imported analyses
+CLI -> parsers / adapters -> fact projection -> audit engine
+                                        -> domain + protocols + validators
+                                        -> target selection / evidence matching -> renderers
 ```
 
 Parsers produce provenance-bearing observations. They do not assess claims. Validators make
@@ -21,14 +21,15 @@ preserves the trace from question through claims, requirements, facts, and asses
 
 ## Core model
 
-- `ResearchQuestion` selects one supported family and contains explicit `Claim` objects.
+- `ResearchQuestion` selects one supported family, states hypotheses and binds protocol claims.
 - `ExtractedFact` is an observation or computed value with provenance; `None` represents unknown.
 - `Hypothesis` groups the claims that make a broad proposition checkable, so a report can say
   "claim A supported, claim B unevidenced, therefore the hypothesis is not established".
 - `Evidence` cites facts and records strength, directness, and origin.
 - `EvidenceRequirement` belongs to a claim and declares necessity, role (substantive or
   prerequisite), accepted evidence types, minimum strength and directness, required facts,
-  dependencies, group membership, gating and contradicting rules, and expert-review boundaries.
+  dependencies, group membership, target-association requirements, gating and contradicting rules,
+  and expert-review boundaries.
 - `EvidenceGroup` expresses alternative evidence structurally: a group is satisfied by any one
   of its members, so symmetry is a property of the model rather than a pair of hand-maintained
   cross-references.
@@ -40,7 +41,8 @@ preserves the trace from question through claims, requirements, facts, and asses
 - `EvidenceAssessment`, `ClaimAssessment`, and `HypothesisAssessment` state coverage and rationale.
 - `AuditReport` carries the question, the inventory it was judged against, the validation
   results, the trace edges, and the versions, so "why did it say that" is answerable from the
-  report alone. It aggregates the axes without reducing them to one score.
+  report alone. It also preserves all researcher inputs, selected calculation IDs and association
+  diagnostics while retaining the full supplied inventory. It aggregates the axes without a score.
 
 Identity is represented by stable string IDs in V0.1. This keeps graph edges explicit and output
 serializable while avoiding a premature entity framework.
@@ -73,9 +75,11 @@ recommendations, limitations, and a semantic version.
 ## Package boundaries
 
 `domain/`, `protocols/`, `parsers/`, `validators/`, `evidence/`, `audit/`, `render/` and `cli/`
-all exist and carry working behaviour. `adapters/` does not exist yet: the seam is planned for a
-milestone after M3, and empty placeholder modules are intentionally avoided. The milestone order
-and the current gap between declarations and behavior are tracked in
+and `adapters/` all exist and carry working behaviour. The JSON analysis seam is implemented.
+`evidence/selection.py` restricts scientific matching and validators to one root calculation and
+its explicitly linked analyses; ambiguous association blocks requirements instead of joining
+unrelated evidence. Derivations can declare fact-value predicates, so presence does not imply
+a positive outcome. The milestone order and remaining coverage gaps are tracked in
 [docs/v0.1-plan.md](v0.1-plan.md).
 
 Every module that leaves the package ships with the tests that hold it in place. Two boundaries
@@ -86,7 +90,8 @@ have proved easy to test on one side only and therefore worth calling out:
   boundary on the real corpus for exactly this reason.
 - **declaration to behaviour.** A field a protocol declares but nothing reads is worse than a
   missing field, because the declaration reads as an implemented control. `expert_review_when`
-  is the standing example (D-31).
+  was a repaired example (D-31). Presence-only IRC derivation and missing target association
+  were later repaired with consumed predicates and an association gate (D-34/D-35).
 
 ## Failure modes and technical-debt controls
 
@@ -100,8 +105,12 @@ have proved easy to test on one side only and therefore worth calling out:
   typed facts through interfaces and contract-test parsers.
 - **Protocol drift:** changing rules can make reports irreproducible. Version protocols and record
   protocol version in reports and derived provenance.
-- **Stringly typed evidence:** V0.1 evidence-type strings ease extension but risk typos. Introduce a
-  registry or validated plugin namespace before third-party protocols are supported.
+- **Stringly typed evidence:** fact and evidence names are registered enums. Preserve this
+  refusal boundary before third-party protocols are supported.
+- **Unrelated evidence:** a result retains its own ID and source link. Multiple independent roots
+  require explicit target selection; state/molecule conflicts cannot establish a claim.
+- **Cross-job contamination:** the ORCA parser scopes all observations to the first identifiable
+  execution; ambiguous compound boundaries withhold scientific observations.
 - **Alternative/dependency semantics:** complex Boolean evidence graphs can become opaque. Keep V1
   semantics narrow and add graph/cycle validation before the audit engine consumes them.
 - **Overconfident prose:** rendering can exceed structured conclusions. Generate templates from the
@@ -113,7 +122,7 @@ have proved easy to test on one side only and therefore worth calling out:
 
 The runtime core uses only the Python standard library. Development extras are pytest, Ruff, and
 mypy; Hatchling builds the package. A later ORCA parser adapter may optionally depend on cclib after
-its capability and license are reviewed. CLI parsing should begin with `argparse`; richer UI
+its capability and license are reviewed. CLI parsing uses `argparse`; richer UI
 dependencies are not justified yet.
 
 ## Test strategy
@@ -127,9 +136,10 @@ dependencies are not justified yet.
    snapshots of the human rendering. The shape is recorded rather than every value, so a
    protocol rewording does not churn the file while a key rename, reorder or removal still
    fails. Both live in `tests/test_golden_report.py` against `tests/data/`.
-7. Static typing and linting in CI across supported Python versions. *No CI exists yet, so this
-   step is a manual convention; the real-corpus tests skip themselves when the corpus is absent,
-   which means a quarter of the suite runs only where someone has fetched it.*
+7. Static typing, linting and tests are defined in CI across Python 3.12/3.13 and three operating
+   systems. The configuration is tested locally; its first actual GitHub execution is still pending.
+8. Target-association, invalid quantity and multi-job end-to-end regressions cover the repaired
+   false-SUPPORTED cases. Real-corpus tests remain optional when data cannot be fetched.
 
 ## Implementation roadmap
 
@@ -144,15 +154,10 @@ dependencies are not justified yet.
 4. **Status correctness (done):** derived keys inherit their sources' absence reason, a
    non-terminating file withholds list observations, an unexamined scope reports `UNKNOWN`, and
    the parser-to-audit path is covered end to end against the real corpus.
-5. **Scientific validators (in progress):** convergence, Hessian order and method consistency are
-   in place for the three families. What remains is the parser's own fidelity — table selection
-   and per-job block boundaries (D-27 to D-29) — which currently limits what those validators can
-   be trusted to see.
-6. **CLI and reports (next):** a free-text question, stable machine-readable output with a golden
-   report, a text renderer with snapshots, an exit-code policy, `examples/`, and end-to-end tests
-   over the CLI. Blocked on decisions Q13 and Q14.
-7. **Adapter seam:** structured import for external hole-electron/NTO/SOC/IRC analyses, initially
-   targeting documented Multiwfn-exported data without reimplementing its algorithms. Until this
-   exists, most accepted evidence types have no producer, so `SUPPORTED` is reachable only
-   through a user assertion, which is capped at `WEAK`/`INDIRECT` and therefore cannot satisfy the
-   requirements that demand more.
+5. **CLI and reports (done):** free-text questions, documented exit codes, stable structured
+   output, golden reports, three examples and tested researcher input channels.
+6. **Adapter seam (done):** attributed JSON import of hole-electron/NTO/SOC/IRC facts; explicit
+   source association and quantity validation. No external analysis algorithm is reimplemented.
+7. **Hardening (in progress):** protocol 1.1.0 closes false-SUPPORTED paths; report schema 2 records
+   scope and researcher inputs. Local Git history exists. Actual remote CI, broader real cases,
+   property tests and cross-version replay remain release work. LLM integration stays deferred.

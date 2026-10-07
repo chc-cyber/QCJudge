@@ -274,6 +274,13 @@ def assess_requirement(
     satisfied: Mapping[str, str],
     completed: Mapping[str, EvidenceAssessment],
 ) -> EvidenceAssessment:
+    if requirement.require_target_association and ctx.association_issue is not None:
+        return EvidenceAssessment(
+            requirement.id,
+            AssessmentStatus.NOT_ASSESSABLE,
+            ctx.association_issue,
+            missing_evidence_types=requirement.accepted_evidence_types,
+        )
     effects = _rule_effects(requirement, rule_results)
     if effects.blocking is not None:
         return EvidenceAssessment(

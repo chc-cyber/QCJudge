@@ -42,8 +42,8 @@ unassessable. The deterministic engine contains no requirement or rule identifie
 The ORCA subset is validated against real output from ORCA 2.6 through 5.0, fetched on demand
 by `tools/fetch_benchmark_data.py` and verified against a pinned manifest; no third-party data
 is committed to this repository. Three worked examples under [`examples/`](examples/README.md)
-show what an audit concludes and, more importantly, what it refuses to. Next: the adapter seam
-for externally computed analyses. See [the working plan](docs/v0.1-plan.md) for the debt
+show what an audit concludes and what it refuses to. The adapter seam is implemented; current
+work is M5 hardening and release validation. See [the working plan](docs/v0.1-plan.md) for the debt
 register and milestone gates.
 
 ## Using the command line
@@ -67,7 +67,17 @@ and INDIRECT, so it is recorded honestly without masquerading as parsed data.
 descriptor, an NTO composition, a spin-orbit coupling, an IRC outcome. The values keep the
 producer that computed them, so the report says which numbers the calculation emitted and which
 an external tool supplied. The format is documented in
-[the adapter format](docs/adapter-format.md).
+[the adapter format](docs/adapter-format.md). Each imported result has its own calculation ID;
+`source_calculation_id` associates it with the main calculation. Separate unlinked results cannot
+jointly support one claim. Use `--target calc-1` (or `--context calculation_id=calc-1`) to choose
+among independent calculations; default parsed IDs are `calc-N` in sorted input-file order.
+Optional `molecule` and `state` metadata are checked against the question.
+
+Reports use `qcjudge.audit_report/2`, recording the selected calculations, unresolved association,
+and complete researcher conditions and expert inputs. Built-in protocols are version `1.1.0`;
+explicit failed IRC outcomes and zero excited-state counts do not create positive evidence.
+The ORCA reader evaluates only the first identifiable execution in a multi-job output and warns
+about later output. Split other jobs into separate inputs if they need auditing.
 
 **Exit codes describe the run, not the verdict.** An audit that ran exits `0` even when the
 evidence is insufficient, because the report is the deliverable. `2` means no audit could be

@@ -1,22 +1,18 @@
 name: CI
 
-# Python support policy. This list is the single source of truth for the interpreter matrix, and
+# Python support policy. The test matrix is the single source of truth for interpreter support, and
 # `tests/test_ci_configuration.py` asserts that it agrees with the classifiers and
 # `requires-python` in pyproject.toml, so the three cannot drift apart.
 #
 #   supported: 3.12 (the floor) and 3.13
 #
 # A real corpus of ORCA output is not committed. `Test` fetches it and runs against it; when the
-# fetch is unavailable the real-corpus tests skip themselves rather than fail, and `Lint & types`
-# says so out loud.
+# fetch is unavailable the real-corpus tests skip themselves rather than fail.
 
 on:
   push:
     branches: ["**"]
   pull_request:
-
-env:
-  SUPPORTED_PYTHON: '["3.12", "3.13"]'
 
 jobs:
   lint:
@@ -47,7 +43,7 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ${{ fromJSON(env.SUPPORTED_PYTHON) }}
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -62,3 +58,9 @@ jobs:
         run: python tools/fetch_benchmark_data.py
       - name: Pytest
         run: pytest -q
+      - name: Build wheel
+        run: python -m pip wheel --no-deps --wheel-dir dist .
+      - name: Install built wheel
+        run: python -m pip install --force-reinstall --no-deps --no-index --find-links dist qcjudge
+      - name: Verify installed wheel in isolation
+        run: python -I tools/verify_installed_package.py

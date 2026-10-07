@@ -3,16 +3,18 @@
 A workflow that tests a version the package does not claim, or omits one it does, is worse than
 no workflow: it reports green while leaving the supported range unverified. These checks are
 textual on purpose -- parsing YAML would need a dependency the project does not have, and the
-questions that matter here ("is this version listed?", "is this command run?") are answerable
-without one.
+questions that matter here ("which literal versions does the actual matrix contain?", "is this
+command run?") are answerable without one. The matrix must remain literal: expression contexts
+available inside steps, such as `env`, are not necessarily available when jobs are scheduled.
 """
 
 from __future__ import annotations
 
-import json
 import re
 import tomllib
 from pathlib import Path
+
+import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "ci.yml"
@@ -28,10 +30,11 @@ def _pyproject() -> dict:
 
 
 def _declared_versions() -> list[str]:
-    """The interpreter matrix, read from the workflow's own support policy."""
-    match = re.search(r"^  SUPPORTED_PYTHON: '(\[.*?\])'$", _workflow(), re.MULTILINE)
-    assert match is not None, "the workflow no longer declares SUPPORTED_PYTHON"
-    return json.loads(match.group(1))
+    """Read the literal interpreter versions actually used by the test matrix."""
+    versions = _indented_list(r"^        python-version:")
+    assert versions, "the test matrix must declare Python versions as a literal YAML list"
+    assert all(re.fullmatch(r"\d+\.\d+", version) for version in versions)
+    return versions
 
 
 def _classifier_versions() -> list[str]:
@@ -54,8 +57,25 @@ def test_the_workflow_exists() -> None:
 def test_the_workflow_declares_at_least_the_floor_and_the_next_version() -> None:
     versions = _declared_versions()
 
-    assert versions, "an empty matrix would run no tests"
+    assert len(versions) >= 2, "test at least the Python floor and the next supported version"
     assert versions == sorted(versions, key=lambda item: tuple(map(int, item.split("."))))
+
+
+def test_the_matrix_does_not_reuse_step_environment_context(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The previous env expression was invalid at strategy.matrix despite textual green tests."""
+    workflow = _workflow()
+    invalid = re.sub(
+        r"^        python-version:.*$",
+        "        python-version: ${{ fromJSON(env.SUPPORTED_PYTHON) }}",
+        workflow,
+        flags=re.MULTILINE,
+    )
+    monkeypatch.setattr(f"{__name__}._workflow", lambda: invalid)
+
+    with pytest.raises(AssertionError, match="literal YAML list"):
+        _declared_versions()
 
 
 def test_the_classifiers_match_the_workflow_matrix() -> None:
@@ -155,6 +175,28 @@ def test_the_real_corpus_step_cannot_fail_the_build() -> None:
 
 def test_the_workflow_checks_out_the_repository() -> None:
     assert "actions/checkout" in _workflow()
+
+
+def test_the_test_job_builds_and_checks_the_installed_wheel_in_isolation() -> None:
+    """Editable source tests cannot establish that the distributable package works.
+
+    Every matrix runner must build a wheel, replace the editable installation using that
+    local artifact, and execute the smoke check with Python's source-path isolation enabled.
+    """
+    test_job = _workflow().split("\n  test:\n", 1)[1]
+    steps = [
+        "      - name: Pytest\n        run: pytest -q",
+        "      - name: Build wheel\n"
+        "        run: python -m pip wheel --no-deps --wheel-dir dist .",
+        "      - name: Install built wheel\n"
+        "        run: python -m pip install --force-reinstall --no-deps --no-index "
+        "--find-links dist qcjudge",
+        "      - name: Verify installed wheel in isolation\n"
+        "        run: python -I tools/verify_installed_package.py",
+    ]
+    positions = [test_job.index(step) for step in steps]
+
+    assert positions == sorted(positions), "build and install before checking the installed wheel"
 
 
 # -- the ignore rules the workflow depends on ------------------------------------------------

@@ -21,7 +21,10 @@ one.
   "source_file": "dvb_s1_hole_electron.txt",
   "calculations": [
     {
-      "calculation_id": "dvb-s1",
+      "calculation_id": "dvb-s1-analysis",
+      "source_calculation_id": "calc-1",
+      "molecule": "dvb",
+      "state": "S1",
       "values": {
         "scf.converged": {"value": true, "unit": "none"},
         "tddft.state_count": {"value": 5, "unit": "states"},
@@ -41,7 +44,10 @@ one.
 | `producer_version` | yes | The producer's version. Without it an imported value cannot be reproduced or attributed precisely. |
 | `source_file` | no | The file the analysis was exported from. Recorded in provenance; when absent, the path of the import itself is used. |
 | `calculations` | yes | A non-empty list. Each entry becomes its own calculation, so one entry's descriptors cannot answer a claim about another. |
-| `calculations[].calculation_id` | no | Names the calculation the values describe. Defaults to `analysis-N`. |
+| `calculations[].calculation_id` | no | Unique ID for this result. Defaults to `analysis-N`; use explicit distinct IDs when importing several files. Reusing an ID across results is refused. |
+| `calculations[].source_calculation_id` | for a related result | ID of the supplied main calculation this analysis describes. It preserves separate facts/producers while associating their evidence. |
+| `calculations[].molecule` | no | Non-empty label checked against the question's `molecule` binding. |
+| `calculations[].state` | no | Non-empty state label checked against the question's `state` binding. |
 | `calculations[].values` | yes | A non-empty mapping of quantity to `{value, unit}`. |
 
 ## Quantities
@@ -87,7 +93,26 @@ Exact equivalences are converted, because the arithmetic carries no judgement:
 Anything else is refused rather than converted. A value stated in the wrong unit is worse than a
 missing one: it looks like an answer. Convert before exporting.
 
-A boolean value keeps its type, because a convergence flag is read as a flag.
+A boolean value keeps its type, because a convergence flag is read as a flag. Units are
+validated for booleans too. Only `scf.converged` and `irc.connects_two_minima` accept booleans;
+numeric 0/1 cannot substitute for a flag. `tddft.state_count` accepts non-negative JSON integers,
+not booleans or fractional/float counts. Zero states remain a fact but do not identify an excitation.
+Other values must be finite numbers; D is non-negative, Sr and NTO contribution are in [0,1],
+and signed SOC values are retained. These are quantity domains, not universal CT/TADF thresholds.
+
+## Associating an analysis with its target
+
+For `--input job.out`, the parsed result defaults to `calc-1`. For a directory, sorted filenames
+receive `calc-1`, `calc-2`, etc. An imported SOC or IRC result must state
+`source_calculation_id: "calc-1"` to contribute alongside that output. Its own `calculation_id`
+stays distinct. Links to absent results, cycles, conflicting metadata, and explicit molecule/state
+mismatches yield `NOT_ASSESSABLE`. Several unlinked roots are also unassessable unless `--target`
+(or context `calculation_id`) selects one; unrelated roots remain visible but do not contribute.
+A single self-contained result can be audited without a source link. Association is declared by
+the supplier and recorded; QCJudge does not infer molecular identity from a filename.
+
+An IRC flag of `false` is preserved as a fact, but cannot derive evidence asserting that two
+minima were reached. It does not by itself refute the existence of a transition state.
 
 ## What the audit does with it
 

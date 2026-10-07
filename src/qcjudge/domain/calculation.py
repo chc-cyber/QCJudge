@@ -92,6 +92,9 @@ class ParseResult:
     diagnostics: ParseDiagnostics = ParseDiagnostics()
     origin: EvidenceOrigin = EvidenceOrigin.PARSED
     calculation_id: str | None = None
+    source_calculation_id: str | None = None
+    molecule: str | None = None
+    state: str | None = None
 
     def __post_init__(self) -> None:
         if self.extracted_at.tzinfo is None:

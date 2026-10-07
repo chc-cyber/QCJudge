@@ -13,7 +13,7 @@ from qcjudge.domain.assessment import HypothesisAssessment
 from qcjudge.domain.audit import AuditReport
 from qcjudge.domain.validation import ValidationResult, ValidationScope
 
-SCHEMA = "qcjudge.audit_report/1"
+SCHEMA = "qcjudge.audit_report/2"
 
 
 def _validation(result: ValidationResult) -> dict[str, Any]:
@@ -64,6 +64,21 @@ def report_to_dict(report: AuditReport) -> dict[str, Any]:
         "schema": SCHEMA,
         "tool_version": report.tool_version,
         "generated_at": report.generated_at.isoformat(),
+        "audit_scope": {
+            "selected_calculation_ids": list(report.selected_calculation_ids),
+            "association_issue": report.association_issue,
+        },
+        "researcher_inputs": {
+            "conditions": dict(report.conditions),
+            "expert_reviews": [
+                {
+                    "requirement_id": flag.requirement_id,
+                    "reported_condition": flag.reported_condition,
+                    "reported_by": flag.reported_by,
+                }
+                for flag in report.expert_reviews
+            ],
+        },
         "protocol": {
             "id": report.protocol_id,
             "version": report.protocol_version,
@@ -129,8 +144,11 @@ def report_to_dict(report: AuditReport) -> dict[str, Any]:
                         "calculation_id": fact.subject.calculation_id,
                         "state": fact.subject.state,
                         "mode_index": fact.subject.mode_index,
+                        "source_calculation_id": fact.subject.source_calculation_id,
+                        "molecule": fact.subject.molecule,
                     },
                     "epistemic_kind": fact.epistemic_kind.value,
+                    "origin": fact.origin.value,
                     "provenance": {
                         "source_file": fact.provenance.source_file,
                         "producer": fact.provenance.producer,
@@ -161,6 +179,10 @@ def report_to_dict(report: AuditReport) -> dict[str, Any]:
                     "key": absent.key.value,
                     "reason": absent.reason.value,
                     "source_file": absent.provenance.source_file,
+                    "calculation_id": absent.subject.calculation_id,
+                    "source_calculation_id": absent.subject.source_calculation_id,
+                    "molecule": absent.subject.molecule,
+                    "state": absent.subject.state,
                 }
                 for absent in report.inventory.unavailable
             ],

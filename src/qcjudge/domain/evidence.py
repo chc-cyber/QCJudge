@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
+from math import isfinite
 
 from qcjudge.domain.common import EpistemicKind, Provenance, UnavailableReason
 from qcjudge.errors import InventoryError
@@ -140,6 +141,8 @@ class Subject:
     calculation_id: str
     state: str | None = None
     mode_index: int | None = None
+    source_calculation_id: str | None = None
+    molecule: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,6 +261,7 @@ class EvidenceRequirement:
     expert_review_when: str | None = None
     expert_review_when_key: str | None = None
     insufficiency_conditions: tuple[str, ...] = ()
+    require_target_association: bool = True
 
     def __post_init__(self) -> None:
         if not self.accepted_evidence_types:
@@ -269,6 +273,31 @@ class EvidenceRequirement:
                 "A machine-testable expert boundary needs the condition it reports: set "
                 "expert_review_when to the prose a reader will see"
             )
+
+
+class FactPredicateOperator(StrEnum):
+    IS_TRUE = "is_true"
+    POSITIVE_INTEGER = "positive_integer"
+    NONZERO_FINITE = "nonzero_finite"
+
+
+@dataclass(frozen=True, slots=True)
+class FactPredicate:
+    """A protocol-declared value condition, separate from a fact's presence."""
+
+    key: FactKey
+    operator: FactPredicateOperator
+
+    def accepts(self, value: ScalarValue | tuple[ScalarValue, ...] | None) -> bool:
+        if self.operator is FactPredicateOperator.IS_TRUE:
+            return value is True
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return False
+        if self.operator is FactPredicateOperator.NONZERO_FINITE:
+            return value != 0 if isinstance(value, int) else isfinite(value) and value != 0
+        if isinstance(value, int):
+            return value > 0
+        return value > 0 and value.is_integer()
 
 
 @dataclass(frozen=True, slots=True)
@@ -287,10 +316,13 @@ class EvidenceDerivation:
     description: str
     strength: EvidenceStrength
     directness: EvidenceDirectness
+    fact_predicates: tuple[FactPredicate, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.required_fact_keys:
             raise ValueError("A derivation must depend on at least one fact")
+        if any(item.key not in self.required_fact_keys for item in self.fact_predicates):
+            raise ValueError("A derivation predicate must name a required fact")
 
 
 @dataclass(frozen=True, slots=True)

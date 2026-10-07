@@ -27,6 +27,7 @@ Example::
 from __future__ import annotations
 
 import json
+import math
 from collections.abc import Mapping
 from datetime import UTC, datetime
 from pathlib import Path
@@ -61,8 +62,7 @@ ADAPTER_PRODUCER_PREFIX = "qcjudge.adapter."
 # `scf.converged` is here because an analysis of a calculation asserts something about that
 # calculation. Without it every gated requirement comes out `NOT_ASSESSABLE` -- correctly, since a
 # descriptor says nothing about whether the wavefunction behind it converged. A tool that computed
-# the descriptor knows that much, so it states it. Booleans are recorded as 1 and 0, which is how
-# the calculation's own output represents them too.
+# the descriptor knows that much, so it states it as a JSON boolean.
 _EXPECTED_UNITS: Mapping[FactKey, str] = {
     FactKey.SCF_CONVERGED: "dimensionless",
     FactKey.EXCITED_STATE_COUNT: "dimensionless",
@@ -74,6 +74,11 @@ _EXPECTED_UNITS: Mapping[FactKey, str] = {
 }
 
 SUPPORTED_QUANTITIES: frozenset[FactKey] = frozenset(_EXPECTED_UNITS)
+
+_BOOLEAN_QUANTITIES = frozenset({FactKey.SCF_CONVERGED, FactKey.IRC_CONNECTS_TWO_MINIMA})
+_FRACTION_QUANTITIES = frozenset(
+    {FactKey.HOLE_ELECTRON_SR_INDEX, FactKey.NTO_DOMINANT_PAIR_CONTRIBUTION}
+)
 
 # Scales a legitimate export might use for the same quantity. Only exact equivalents are accepted;
 # anything else has to be converted by whoever exports it, because a silent conversion is a
@@ -106,29 +111,47 @@ def _reject_quantity(quantity: str, where: str) -> UnknownExportedQuantityError:
     return UnknownExportedQuantityError(quantity, source=where, accepted=_ACCEPTED_NAMES)
 
 
-def _scaled(quantity: FactKey, value: float, unit: str) -> float:
-    """The value in the fact's own unit, or a refusal."""
+def _unit_scale(quantity: FactKey, unit: str) -> float:
+    """Validate a unit even for a flag, which must still be dimensionless."""
     expected = _EXPECTED_UNITS[quantity]
     alternatives = _ALTERNATIVE_UNITS.get(expected, {expected: 1.0})
     if unit not in alternatives:
         raise WrongUnitError(quantity.value, unit, expected)
-    return value * alternatives[unit]
+    return alternatives[unit]
 
 
 def _number(quantity: FactKey, raw: object, where: str) -> ScalarValue:
-    """The value as recorded, refusing anything that is not a number or a flag.
-
-    A boolean is kept as a boolean rather than flattened to 1 or 0: the readers that consume a
-    convergence flag expect a flag, and coercing it to a float silently turns a PASS into
-    UNKNOWN. The fact model already allows booleans, so there is no reason to lose the type.
-    """
-    if isinstance(raw, bool):
+    """Validate the quantity's type and physical domain before it becomes a fact."""
+    if quantity in _BOOLEAN_QUANTITIES:
+        if not isinstance(raw, bool):
+            raise AdapterFormatError(
+                f"{where}: {quantity.value!r} must be a boolean, "
+                f"received {type(raw).__name__}"
+            )
         return raw
-    if not isinstance(raw, (int, float)):
+    if quantity is FactKey.EXCITED_STATE_COUNT:
+        if isinstance(raw, bool) or not isinstance(raw, int) or raw < 0:
+            raise AdapterFormatError(
+                f"{where}: {quantity.value!r} must be a non-negative integer"
+            )
+        return raw
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)):
         raise AdapterFormatError(
             f"{where}: {quantity.value!r} must be a number, received {type(raw).__name__}"
         )
-    return float(raw)
+    try:
+        value = float(raw)
+    except OverflowError as error:
+        raise AdapterFormatError(
+            f"{where}: {quantity.value!r} must be a finite number"
+        ) from error
+    if not math.isfinite(value):
+        raise AdapterFormatError(f"{where}: {quantity.value!r} must be a finite number")
+    if quantity is FactKey.HOLE_ELECTRON_D_INDEX and value < 0:
+        raise AdapterFormatError(f"{where}: {quantity.value!r} must be non-negative")
+    if quantity in _FRACTION_QUANTITIES and not 0 <= value <= 1:
+        raise AdapterFormatError(f"{where}: {quantity.value!r} must be between 0 and 1")
+    return value
 
 
 class JsonAnalysisAdapter:
@@ -141,7 +164,7 @@ class JsonAnalysisAdapter:
     """
 
     name = "qcjudge.adapter.json_analysis"
-    version = "0.1.0"
+    version = "0.2.0"
 
     @property
     def supported_keys(self) -> frozenset[FactKey]:
@@ -223,6 +246,9 @@ class JsonAnalysisAdapter:
         carried: set[FactKey] = set()
         for index, calculation in enumerate(calculations, start=1):
             observations, calculation_id = self._observations_for(path, calculation, index)
+            source_calculation_id, molecule, state = self._subject_metadata(
+                path, calculation, index
+            )
             carried.update(observation.key for observation in observations)
             results.append(
                 ParseResult(
@@ -234,9 +260,31 @@ class JsonAnalysisAdapter:
                     diagnostics=ParseDiagnostics(outcome=ParseOutcome.COMPLETE),
                     origin=EvidenceOrigin.ADAPTER,
                     calculation_id=calculation_id,
+                    source_calculation_id=source_calculation_id,
+                    molecule=molecule,
+                    state=state,
                 )
             )
         return tuple(results), frozenset(carried)
+
+    def _subject_metadata(
+        self, path: Path, calculation: object, index: int
+    ) -> tuple[str | None, str | None, str | None]:
+        """Carry explicit links without conflating an analysis with its source calculation."""
+        if not isinstance(calculation, dict):
+            raise AdapterFormatError(f"{path} calculation {index} must be a JSON object")
+        metadata: list[str | None] = []
+        for name in ("source_calculation_id", "molecule", "state"):
+            if name not in calculation:
+                metadata.append(None)
+                continue
+            value = calculation[name]
+            if not isinstance(value, str) or not value.strip():
+                raise AdapterFormatError(
+                    f"{path} calculation {index}: {name!r} must be a non-empty string"
+                )
+            metadata.append(value)
+        return metadata[0], metadata[1], metadata[2]
 
     def _observations_for(
         self, path: Path, calculation: object, index: int
@@ -275,11 +323,12 @@ class JsonAnalysisAdapter:
                     f"{where}: {quantity!r} states no unit. Every imported value declares its "
                     "unit so a conversion can never be assumed."
                 )
+            scale = _unit_scale(key, unit)
             raw = _number(key, entry.get("value"), where)
-            # A flag carries no scale, so only quantities with a real unit are converted.
-            value: ScalarValue = (
-                raw if isinstance(raw, bool) else _scaled(key, float(raw), unit)
-            )
+            # Flags and counts retain their types; only continuous quantities have a scale.
+            value: ScalarValue = raw if not isinstance(raw, float) else raw * scale
+            if isinstance(value, float) and not math.isfinite(value):
+                raise AdapterFormatError(f"{where}: {quantity!r} must be a finite number")
             observations.append(
                 Observation(
                     key=key,

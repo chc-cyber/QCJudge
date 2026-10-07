@@ -1,6 +1,6 @@
 # Worked examples
 
-Three real ORCA outputs, each chosen to make one point about what an audit can and cannot
+Three synthetic ORCA-format outputs, each chosen to make one point about what an audit can and cannot
 conclude. Every file is synthetic but uses ORCA's own printed wording and layout, so the
 parser reads it exactly as it reads the real corpus.
 
@@ -17,7 +17,8 @@ Read together they are the project's claim in one page: **a calculation can succ
 evidence can still be insufficient or even contradicted.** No example reports `SUPPORTED`, and
 that is the honest result, not a shortcoming of the examples — the evidence types that would
 support these claims (hole-electron analysis, spin-orbit couplings, IRC) come from analyses
-QCJudge does not compute. They arrive through a user assertion or, once it exists, an adapter.
+QCJudge does not compute. The implemented JSON adapter can import those facts with source
+association; user assertions stay capped at WEAK/INDIRECT.
 
 ## Running one
 

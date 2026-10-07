@@ -2,6 +2,16 @@
   "schema": "str",
   "tool_version": "str",
   "generated_at": "str",
+  "audit_scope": {
+    "selected_calculation_ids": [
+      "str"
+    ],
+    "association_issue": "NoneType"
+  },
+  "researcher_inputs": {
+    "conditions": {},
+    "expert_reviews": []
+  },
   "protocol": {
     "id": "str",
     "version": "str",
@@ -114,9 +124,12 @@
         "subject": {
           "calculation_id": "str",
           "state": "NoneType",
-          "mode_index": "NoneType"
+          "mode_index": "NoneType",
+          "source_calculation_id": "NoneType",
+          "molecule": "NoneType"
         },
         "epistemic_kind": "str",
+        "origin": "str",
         "provenance": {
           "source_file": "str",
           "producer": "str",
@@ -144,7 +157,11 @@
       {
         "key": "str",
         "reason": "str",
-        "source_file": "str"
+        "source_file": "str",
+        "calculation_id": "str",
+        "source_calculation_id": "NoneType",
+        "molecule": "NoneType",
+        "state": "NoneType"
       }
     ]
   },

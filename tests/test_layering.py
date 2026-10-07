@@ -140,7 +140,9 @@ def test_domain_imports_only_the_standard_library_and_itself() -> None:
     for path in (SOURCE_ROOT / "domain").rglob("*.py"):
         _, external = _imported_roots(path)
         external_seen |= external
-    assert external_seen <= {"__future__", "collections", "dataclasses", "datetime", "enum", "re"}
+    assert external_seen <= {
+        "__future__", "collections", "dataclasses", "datetime", "enum", "math", "re",
+    }
 
 
 def test_no_module_imports_the_package_root() -> None:

@@ -22,10 +22,11 @@ from qcjudge.domain.question import ResearchQuestion
 from qcjudge.domain.validation import ValidationResult
 from qcjudge.evidence import with_derived_evidence
 from qcjudge.evidence.matching import assess_all
+from qcjudge.evidence.selection import select_inventory
 from qcjudge.protocols import get_protocol
 from qcjudge.validators import resolve
 
-TOOL_VERSION = "0.1.0.dev0"
+TOOL_VERSION = "0.1.0.dev1"
 
 
 def run_validation_rules(
@@ -72,12 +73,14 @@ def audit(
     """
     protocol = get_protocol(question.family)
     effective = with_derived_evidence(protocol, inventory)
+    selection = select_inventory(question, effective)
     ctx = AuditContext(
         question=question,
         protocol=protocol,
-        inventory=effective,
+        inventory=selection.inventory,
         conditions=dict(conditions or {}),
         expert_reviews=tuple(expert_reviews),
+        association_issue=selection.issue,
     )
     validations = run_validation_rules(protocol, ctx)
     rule_results = {result.rule_id: result for result in validations}
@@ -100,6 +103,10 @@ def audit(
         background=tuple(item.statement for item in protocol.background),
         max_defensible_claim=protocol.max_defensible_claim_strength,
         tool_version=TOOL_VERSION,
+        selected_calculation_ids=selection.calculation_ids,
+        association_issue=selection.issue,
+        conditions=tuple(sorted((conditions or {}).items())),
+        expert_reviews=tuple(expert_reviews),
     )
 
 

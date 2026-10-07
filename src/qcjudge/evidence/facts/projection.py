@@ -40,6 +40,7 @@ from qcjudge.domain.evidence import (
     Subject,
     UnavailableFact,
 )
+from qcjudge.errors import InventoryError
 
 type _Observed = Mapping[FactKey, ScalarValue | tuple[ScalarValue, ...]]
 type _Arithmetic = Callable[[_Observed], ScalarValue | None]
@@ -218,6 +219,15 @@ def _origin_of(result: ParseResult) -> EvidenceOrigin:
     )
 
 
+def _subject_of(result: ParseResult, calculation_id: str) -> Subject:
+    return Subject(
+        calculation_id=calculation_id,
+        source_calculation_id=result.source_calculation_id,
+        molecule=result.molecule,
+        state=result.state,
+    )
+
+
 def facts_from_parse_results(
     results: Sequence[ParseResult],
     *,
@@ -227,6 +237,15 @@ def facts_from_parse_results(
     facts: list[ExtractedFact] = []
     absences: list[UnavailableFact] = []
     arithmetic_keys = frozenset(key for key, _unit, _fn, _sources in _DERIVED_FACTS)
+    calculation_ids = tuple(
+        result.calculation_id or f"calc-{index}"
+        for index, result in enumerate(results, start=1)
+    )
+    if len(set(calculation_ids)) != len(calculation_ids):
+        raise InventoryError(
+            "Calculation IDs must be unique across parsed and imported results. "
+            "Use source_calculation_id to associate analyses instead of reusing an ID."
+        )
 
     for index, result in enumerate(results, start=1):
         calculation_id = result.calculation_id or f"calc-{index}"
@@ -257,7 +276,7 @@ def facts_from_parse_results(
                     provenance=result.provenanced(
                         observation.location if observation is not None else None
                     ),
-                    subject=Subject(calculation_id=calculation_id),
+                    subject=_subject_of(result, calculation_id),
                     message=_TRUNCATED_MESSAGE,
                 )
             )
@@ -277,7 +296,7 @@ def facts_from_parse_results(
                     key=key,
                     reason=reason,
                     provenance=result.provenanced(None),
-                    subject=Subject(calculation_id=calculation_id),
+                    subject=_subject_of(result, calculation_id),
                     message=_inherited_message(result, sources, reason, reasons),
                 )
             )
@@ -289,7 +308,7 @@ def facts_from_parse_results(
                     key=absent.key,
                     reason=absent.reason,
                     provenance=absent.provenance,
-                    subject=Subject(calculation_id=calculation_id),
+                    subject=_subject_of(result, calculation_id),
                     message=absent.message,
                 )
             )
@@ -304,7 +323,7 @@ def facts_from_parse_results(
                         key=key,
                         reason=UnavailableReason.UNSUPPORTED_CONSTRUCT,
                         provenance=result.provenanced(None),
-                        subject=Subject(calculation_id=calculation_id),
+                        subject=_subject_of(result, calculation_id),
                         message="The file was not recognised, so no value could be read.",
                     )
                 )
@@ -319,7 +338,7 @@ def facts_from_parse_results(
                     key=key,
                     reason=UnavailableReason.UNSUPPORTED_CONSTRUCT,
                     provenance=result.provenanced(None),
-                    subject=Subject(calculation_id=calculation_id),
+                    subject=_subject_of(result, calculation_id),
                     message=(
                         f"{result.producer} does not attempt to read {key.value}; it would "
                         "have to arrive through an adapter."
@@ -344,7 +363,7 @@ def _observed_facts(
             key=observation.key,
             value=observation.value,
             unit=observation.unit,
-            subject=Subject(calculation_id=calculation_id),
+            subject=_subject_of(result, calculation_id),
             provenance=result.provenanced(observation.location),
             epistemic_kind=EpistemicKind.OBSERVATION,
             origin=origin,
@@ -389,7 +408,7 @@ def _derived_facts(
                 key=key,
                 value=derived[key],
                 unit=unit,
-                subject=Subject(calculation_id=calculation_id),
+                subject=_subject_of(result, calculation_id),
                 provenance=result.provenanced(location),
                 epistemic_kind=EpistemicKind.COMPUTED_FACT,
                 origin=origin,

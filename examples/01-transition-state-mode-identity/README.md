@@ -19,7 +19,8 @@ QCJudge scientific audit
 Question
 Is this structure the transition state for the C-C rotation step?
 context: molecule=dvb
-protocol: transition_state 1.0.0
+protocol: transition_state 1.1.0
+audit calculations: calc-1
 
 Execution validity
 PASS

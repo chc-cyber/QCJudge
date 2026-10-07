@@ -6,7 +6,7 @@ Importing this package registers every built-in rule. Rules read the inventory t
 never write anywhere.
 """
 
-from qcjudge.validators import execution, methodology
+from qcjudge.validators import execution, methodology, target_state
 from qcjudge.validators.registry import RuleFn, register, registered_keys, resolve
 
 __all__ = [
@@ -16,4 +16,5 @@ __all__ = [
     "register",
     "registered_keys",
     "resolve",
+    "target_state",
 ]

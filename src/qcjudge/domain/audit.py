@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from qcjudge.domain.assessment import AssessmentStatus, HypothesisAssessment
+from qcjudge.domain.context import ExpertReviewFlag
 from qcjudge.domain.evidence import EvidenceInventory
 from qcjudge.domain.question import ResearchQuestion
 from qcjudge.domain.validation import ValidationResult, ValidationScope, ValidationStatus
@@ -53,8 +54,12 @@ class AuditReport:
     limitations: tuple[str, ...] = ()
     background: tuple[str, ...] = ()
     max_defensible_claim: str | None = None
-    tool_version: str = "0.1.0.dev0"
+    tool_version: str = "0.1.0.dev1"
     disclaimer: str = DISCLAIMER
+    selected_calculation_ids: tuple[str, ...] = ()
+    association_issue: str | None = None
+    conditions: tuple[tuple[str, str], ...] = ()
+    expert_reviews: tuple[ExpertReviewFlag, ...] = ()
 
     def __post_init__(self) -> None:
         if self.generated_at.tzinfo is None:

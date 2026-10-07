@@ -5,6 +5,24 @@ public API stabilizes.
 
 ## Unreleased
 
+### 2026-10-07 hardening (0.1.0.dev1)
+
+- Built-in protocols advance to 1.1.0. Scientific rationale: a supplied fact does not imply a
+  positive outcome; unrelated targets and impossible excitation indices cannot support claims.
+- Derivations require true IRC, positive excited-state counts and finite nonzero SOC channels.
+  No universal CT/TADF significance threshold is introduced.
+- External analyses retain independent IDs and declare source calculation, molecule and state.
+  Ambiguous or conflicting association cannot establish evidence; `--target` selects one root.
+- Adapter 0.2.0 validates types, finite values, quantity domains and every unit. Duplicate result
+  IDs are refused rather than merged.
+- ORCA parser 0.4.0 scopes all observations to the first identifiable execution and refuses
+  ambiguous compound attribution. Later jobs cannot lend termination or scientific values.
+- JSON report schema advances to `qcjudge.audit_report/2`: audit scope, all researcher conditions
+  and expert inputs, complete subject association and fact origin are recorded. Consumers must
+  recognize the schema change.
+- CI uses a legal direct Python matrix. Local Git history, end-to-end regressions, real-corpus
+  checks and an independent wheel installation are verified; actual remote CI remains pending.
+
 ### Foundation
 
 - Foundational package and immutable typed domain model.
@@ -28,7 +46,7 @@ public API stabilizes.
   converged minimum is not reported as a failed calculation.
 - Aggregation with prerequisite and substantive roles, an explicit status precedence, and a
   trace graph reaching from the question back to the source file.
-- Stable JSON report schema `qcjudge.audit_report/1`.
+- Initial JSON report schema `qcjudge.audit_report/1`, superseded by `/2` in this hardening pass.
 - An acceptance corpus of 18 cases proving that technical success does not imply scientific
   sufficiency, and a layering test that parses every source file to enforce the dependency
   direction and the ban on LLM, web, and numeric dependencies in the core.
@@ -227,9 +245,8 @@ reading the real output already on disk rather than the fixtures.
 
 ### Known issues
 
-- **No git repository exists yet.** Git is not installed in the authoring environment, so the
-  initial commit and the workflow's first run have to happen elsewhere. `.gitignore`, the
-  workflow and the tests that check it are all in place.
+- Local Git history exists. The workflow has not run on GitHub because no remote destination
+  is configured; configuration tests do not substitute for the first actual CI run.
 - `ruff format` is deliberately not a gate. Formatting was never adopted and the tree is a mix of
   styles, so a format check would fail on arrival rather than guard anything. D-33 records this
   as a decision; `tests/test_ci_configuration.py` fails if a format gate is added without

@@ -23,3 +23,6 @@ scratch/
 # Scratch root for `QCJUDGE_TEST_SCRATCH`, used where the system temporary directory is not
 # usable. See tests/conftest.py.
 .test-scratch/
+
+# Local assistant workspace state
+.workbuddy/
