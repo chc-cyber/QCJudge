@@ -348,12 +348,13 @@ deterministic report), `tests/conftest.py` (scratch routing, §6.2).
 
 ## 6. Current difficulties
 
-### 6.1 PENDING EXTERNAL INPUT — actual remote CI (D-13)
+### 6.1 DEFERRED BY USER — actual remote CI (D-13)
 
 Git 2.53.0 is installed and the local repository is initialized on `main`. The pre-hardening
-M4 baseline is commit `22c0d25`; this hardening is recorded separately. There is no configured
-remote. A GitHub repository URL is needed before publishing this checkout and running Actions.
-The user was asked for that destination while local work continued.
+M4 baseline is commit `22c0d25`; hardening is commit `284a2c0`. There is no configured remote.
+On 2026-10-07 the user confirmed that no personal GitHub repository exists yet and explicitly
+deferred this part. Continue local M5 work without asking for a repository again; return to remote
+CI when the user resumes it. Publishing and Actions will then need the intended destination.
 
 Ready locally:
 
@@ -454,16 +455,16 @@ Ordered by value, with the honest reason for each.
 
 ### 8.1 Release work, in recommended order
 
-1. **D-13: run actual remote CI.** Obtain the intended GitHub destination, push the existing local
-   history, and inspect all six OS/Python test combinations plus lint/types and installed-wheel
-   checks. Record whether the real corpus was available.
-2. **Generative property tests.** Exercise association graphs, fact predicates, absence projection
+1. **Generative property tests.** Exercise association graphs, fact predicates, absence projection
    and aggregation; preserve execution/evidence independence and prohibit cross-root support.
-3. **Replay contract.** Record raw input checksums and all audit arguments, then verify a saved
+2. **Replay contract.** Record raw input checksums and all audit arguments, then verify a saved
    report can be replayed by a later version. Schema 2's researcher inputs are necessary but not
    sufficient for this gate.
-4. **Broader expert-labelled cases.** Add redacted real examples covering failed IRC, state identity,
+3. **Broader expert-labelled cases.** Add redacted real examples covering failed IRC, state identity,
    mixed jobs and weak/zero coupling; keep labels and scientific assumptions reviewable.
+4. **D-13: actual remote CI, when resumed by the user.** Push to the intended GitHub destination
+   and inspect all six OS/Python combinations plus lint/types and installed-wheel checks. Record
+   whether the real corpus was available. This task is currently deferred at the user's request.
 5. **Release review and `v0.1.0` tag.** Check dependency/attribution documentation, schema migration
    guidance and every M5 gate. Keep the current `0.1.0.dev1` designation until they pass.
 
