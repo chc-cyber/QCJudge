@@ -22,8 +22,10 @@ public API stabilizes.
   the missing-analysis counterpart. Added ordinary user installation/quick-start instructions
   and a local release checklist; removed placeholder repository metadata URLs. Hypothesis caches
   are excluded from source distributions.
-- The candidate remains an unpublished development preview. GitHub and actual remote CI remain
-  deferred by the project owner; independent expert-labelled evaluation remains pending.
+- The candidate remains a development preview; independent expert-labelled evaluation remains
+  pending. The project owner resumed GitHub publication and actual remote CI on 2026-10-08.
+- Default test temporary directories now sanitize path-valued parameter IDs using pytest's
+  30-character basename policy. The full suite is verified without the scratch override.
 
 ### 2026-10-07 hardening (0.1.0.dev1)
 

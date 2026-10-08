@@ -5,4 +5,5 @@ type: software
 authors:
   - name: QCJudge contributors
 version: 0.1.0.dev2
+repository-code: "https://github.com/chc-cyber/QCJudge"
 license: BSD-3-Clause

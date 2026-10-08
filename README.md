@@ -23,12 +23,12 @@ to answer.
 
 ## Status
 
-The local version is `0.1.0.dev2`, a pre-alpha development preview. It has not been
-formally released. M0–M4 are complete; M5 hardening and release validation are in
+The current version is `0.1.0.dev2`, a pre-alpha development preview. A stable
+release has not been published. M0–M4 are complete; M5 hardening and release validation are in
 progress. Local tests, the pinned ORCA corpus, and an independently installed wheel
-have been checked on Windows with Python 3.12. The project owner has deferred the
-remote repository and real CI runs, so the configured platform matrix is still
-awaiting verification.
+have been checked on Windows with Python 3.12. The public repository is
+[chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge). Remote work has resumed;
+the first real CI run and the configured platform matrix await verification.
 
 The evidence kernel and the parser boundary are in place: a three-level reasoning chain from
 question through hypothesis and claim to evidence requirement, registered vocabularies instead
@@ -55,9 +55,17 @@ register and milestone gates.
 
 ## Install locally
 
-Use an existing checkout or a source archive supplied by the maintainer. Run the
-commands below from its root, containing `pyproject.toml` and `examples/`. There is
-currently no published package or download URL to use.
+Get the source from [the public repository](https://github.com/chc-cyber/QCJudge):
+
+```console
+git clone https://github.com/chc-cyber/QCJudge.git
+cd QCJudge
+```
+
+An existing checkout or a source archive from that repository can also be used.
+Run the installation commands from the root containing `pyproject.toml` and
+`examples/`. The project has not published a PyPI package; the instructions below
+install from source or a local wheel.
 
 QCJudge requires Python 3.12 or newer; the configured release checks target Python
 3.12 and 3.13. The package has no runtime dependencies. Check that the interpreter
@@ -204,7 +212,9 @@ The real-ORCA tests skip themselves until the pinned corpus has been fetched wit
 
 CI is configured for lint, strict type checking, tests, wheel construction, and an
 isolated installed-package smoke check on Python 3.12 and 3.13 across Linux, macOS
-and Windows (`.github/workflows/ci.yml`). Real remote execution is deferred.
+and Windows (`.github/workflows/ci.yml`). The first remote run is awaiting
+verification; check [GitHub Actions](https://github.com/chc-cyber/QCJudge/actions)
+for its actual results.
 Formatting is deliberately not a gate; see D-33 in the plan.
 
 See [the architecture](docs/architecture.md), [scientific scope](docs/scientific-scope.md),

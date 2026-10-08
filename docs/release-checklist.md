@@ -1,18 +1,25 @@
 # Local preview release checklist
 
-The current candidate is `0.1.0.dev2`, a pre-alpha development preview that has not
-been formally released. Reports use `qcjudge.audit_report/2`; all three built-in
+The current candidate is `0.1.0.dev2`, a pre-alpha development preview. A stable
+release has not been published. Reports use `qcjudge.audit_report/2`; all three built-in
 protocols are `1.1.1`. Update the explicit
 wheel filename below when the package version changes.
 
-This procedure creates a reviewable local candidate. The project owner has
-deferred the remote repository and real CI runs. Complete the local checks first;
-the remote steps below wait until that work is resumed.
+This procedure creates a reviewable candidate for
+[chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge). Remote work has resumed;
+the first real CI run is awaiting verification. Complete the local checks and
+the remote validation below before publishing the preview.
 
 ## 1. Obtain and identify the source
 
-- Use the existing checkout or a maintainer-supplied source archive. There is no
-  published repository or package URL to assume.
+- Clone [the public repository](https://github.com/chc-cyber/QCJudge) or use an
+  existing checkout or a source archive from it:
+
+  ```console
+  git clone https://github.com/chc-cyber/QCJudge.git
+  cd QCJudge
+  ```
+
 - Run all commands from the root containing `pyproject.toml`, `src/`, `examples/`,
   and `tools/`.
 - Check the interpreter with `py -3.12 --version` on Windows or `python3 --version`
@@ -166,17 +173,19 @@ git rev-parse HEAD
   scope, and release notes. Label this candidate as a pre-alpha development
   preview, and state that the independent expert benchmark is still pending.
 
-## 6. Resume remote release work when authorized
+## 6. Verify remote CI and publish the preview
 
-The present stopping point is the local candidate. After the owner resumes remote
-work:
+The public destination is [chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge).
+Local results do not complete the remote platform gate. Its first run is awaiting
+verification:
 
-1. Choose the actual repository destination. Add its verified URL to package
-   metadata and source-acquisition instructions.
+1. Review the source revision and repository metadata destined for this
+   repository, including the package and citation URLs.
 2. Publish the reviewed source history, then run the configured Linux, macOS, and
    Windows jobs on Python 3.12 and 3.13, including wheel installation and isolated
    smoke checks.
-3. Confirm the corpus fetch succeeded and its tests ran. The current CI fetch is
+3. Inspect the actual [Actions run](https://github.com/chc-cyber/QCJudge/actions).
+   Confirm the corpus fetch succeeded and its tests ran. The current CI fetch is
    optional, so a green run alone can include skipped real-output cases.
 4. Resolve platform failures and rerun affected jobs before publication.
 5. Create an explicitly marked prerelease using the matching source revision,

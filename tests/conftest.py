@@ -14,6 +14,7 @@ sandbox limitation does not look like 72 broken tests.
 from __future__ import annotations
 
 import os
+import re
 import shutil
 from collections.abc import Iterator
 from pathlib import Path
@@ -26,11 +27,13 @@ _ENV_VAR = "QCJUDGE_TEST_SCRATCH"
 @pytest.fixture
 def tmp_path(request: pytest.FixtureRequest) -> Iterator[Path]:
     """A per-test directory under the configured scratch root, or pytest's own."""
+    # Pytest's built-in tmp_path removes path separators and limits the basename to 30
+    # characters. Parameter IDs can contain paths, and must never become directory paths.
+    safe = re.sub(r"\W", "_", request.node.name)[:30]
     root = os.environ.get(_ENV_VAR)
     if not root:
-        yield request.getfixturevalue("tmp_path_factory").mktemp(request.node.name)
+        yield request.getfixturevalue("tmp_path_factory").mktemp(safe)
         return
-    safe = "".join(char if char.isalnum() or char in "-_." else "_" for char in request.node.name)
     directory = Path(root) / f"{safe}-{os.getpid()}"
     counter = 0
     while directory.exists():

@@ -8,9 +8,10 @@ QCJudge welcomes narrowly scoped changes with explicit scientific assumptions an
 4. Add tests, type annotations, and documentation for scientific behavior.
 5. Run the checks below before sharing a change for review.
 
-The current version is the local pre-alpha preview `0.1.0.dev2`; it has not been
-formally released. The project owner has deferred the remote repository and real
-CI execution. The six configured OS/Python combinations await remote verification.
+The current version is the pre-alpha preview `0.1.0.dev2`; a stable release has
+not been published. Source and review work use
+[chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge). Remote work has resumed;
+the first CI run and its six configured OS/Python combinations await verification.
 Ordinary users should follow [the installation and quick start](README.md#install-locally);
 the development extras below are for contributors.
 
@@ -89,7 +90,8 @@ invariants; they do not replace an independent scientific benchmark.
 
 CI is configured to run lint, strict types, tests, wheel construction, and an
 isolated installed-package check on Python 3.12/3.13 across Linux, macOS, and
-Windows. Until remote execution resumes, this configuration is not evidence that
+Windows. The first remote run is awaiting verification; inspect
+[GitHub Actions](https://github.com/chc-cyber/QCJudge/actions) before claiming that
 the complete matrix passes. Formatting is deliberately not a gate; adoption of a
 formatter is a separate decision recorded as D-33 in the working plan.
 
@@ -126,6 +128,6 @@ rationale. Do not add universal thresholds without documented scope and evidence
 or fixtures must have a compatible license and attribution.
 
 See [the local release checklist](docs/release-checklist.md) for independent wheel
-installation, example verification, artifact hashes, and the deferred remote
+installation, example verification, artifact hashes, and the remote validation
 steps. Independent expert-labelled adequacy cases and compatibility checks across
 version changes remain M5 work.

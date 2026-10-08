@@ -183,7 +183,7 @@ objects.
 | Format | `ruff format --check` | **not a gate** — see D-33 |
 | Real corpus | `python tools/fetch_benchmark_data.py --verify` | all 12 pinned files verified |
 | Packaging | wheel build, independent install and isolated CLI check | `0.1.0.dev2` verified |
-| Repository | local Git on `main` | local snapshots and hardening history; no remote configured |
+| Repository | local Git on `main` | public `chc-cyber/QCJudge`; first remote CI verification in progress |
 
 Both skips are the root-facade cases in `tests/test_layering.py`: the package root has no declared
 import restrictions. The previous handoff incorrectly attributed them to missing corpus files.
@@ -383,13 +383,14 @@ invariants, not molecular accuracy.
 
 ## 6. Current difficulties
 
-### 6.1 DEFERRED BY USER — actual remote CI (D-13)
+### 6.1 First actual remote CI (D-13) — in progress
 
 Git 2.53.0 is installed and the local repository is initialized on `main`. The pre-hardening
-M4 baseline is commit `22c0d25`; hardening is commit `284a2c0`. There is no configured remote.
-On 2026-10-07 the user confirmed that no personal GitHub repository exists yet and explicitly
-deferred this part. Continue local M5 work without asking for a repository again; return to remote
-CI when the user resumes it. Publishing and Actions will then need the intended destination.
+M4 baseline is commit `22c0d25`; hardening is commit `284a2c0`, and local dev2 preparation is
+`1a73ee4`. The user deferred remote work on 2026-10-07 and resumed it on 2026-10-08, choosing
+a public repository. The confirmed destination is [chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge),
+with `origin` set to `https://github.com/chc-cyber/QCJudge.git`. The first push/actual CI matrix
+is being verified; do not describe configuration checks as completed remote validation.
 
 Ready locally:
 
@@ -403,9 +404,9 @@ Ready locally:
 - Real corpus fetch is optional (`continue-on-error`); unavailable network means corpus tests skip.
   A green build without the corpus is weaker than a run that includes it.
 
-**Configuration tests and a local wheel check are not a green remote matrix.** After the intended
-repository is supplied, configure its remote, push `main`, inspect the actual Actions run and fix
-any OS/Python-specific failures. Do not tag `v0.1.0` merely because the local run passed.
+**Configuration tests and a local wheel check are not a green remote matrix.** Inspect the first
+actual Actions run and fix any OS/Python-specific failures. Record corpus availability for each
+job. Do not tag stable `v0.1.0` merely because local validation or preview CI passed.
 
 The local sandbox created `.git` under a different Windows owner. Host Git required the exact
 `E:/QCJudge` path in `safe.directory`; no wildcard trust or global author identity was configured.
@@ -419,6 +420,12 @@ root. 72 tests were affected.
 
 **Resolution shipped:** `tests/conftest.py` reads `QCJUDGE_TEST_SCRATCH` and routes `tmp_path` to a
 writable directory. Without the variable, behaviour is unchanged.
+
+Before the first remote push, path-valued parameter IDs exposed a second fixture issue: the
+default branch used the raw test name as a directory basename. Both branches now follow pytest's
+normal strategy of replacing non-word characters and truncating to 30 characters. Path traversal,
+Windows drive paths and slashes in the replay tests no longer fail fixture creation. The complete
+suite is verified with the environment override removed and an explicit writable `--basetemp`.
 
 ```console
 QCJUDGE_TEST_SCRATCH=/some/writable/dir pytest
@@ -515,9 +522,9 @@ Ordered by value, with the honest reason for each.
    raw-input/checksum bundle foundation are implemented. Verify compatibility across real
    versions, including intended rule changes and report-schema migration; a few development
    example replays are not a completed compatibility benchmark.
-3. **D-13: actual remote CI, when resumed by the user.** Push to the intended GitHub destination
-   and inspect all six OS/Python combinations plus lint/types and installed-wheel checks. Record
-   whether the real corpus was available. This task is currently deferred at the user's request.
+3. **D-13: complete actual remote CI verification.** Remote work has resumed for the public
+   `chc-cyber/QCJudge` destination. Inspect all six OS/Python combinations plus lint/types and
+   installed-wheel checks, recording whether the real corpus was available.
 4. **Release review and `v0.1.0` tag.** Follow `docs/release-checklist.md`, checking dependency/
    attribution documentation, schema migration guidance and every M5 gate. Keep the current
    `0.1.0.dev2` development designation until those gates pass.
