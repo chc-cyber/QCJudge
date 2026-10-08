@@ -54,7 +54,7 @@ class AuditReport:
     limitations: tuple[str, ...] = ()
     background: tuple[str, ...] = ()
     max_defensible_claim: str | None = None
-    tool_version: str = "0.1.0.dev1"
+    tool_version: str = "0.1.0.dev2"
     disclaimer: str = DISCLAIMER
     selected_calculation_ids: tuple[str, ...] = ()
     association_issue: str | None = None

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from qcjudge.domain.assessment import AssessmentStatus, EvidenceAssessment
@@ -15,6 +17,8 @@ from qcjudge.domain.evidence import (
     EvidenceType,
     ExtractedFact,
     FactKey,
+    FactPredicate,
+    FactPredicateOperator,
     ScalarValue,
     Subject,
 )
@@ -52,6 +56,62 @@ def _raw_evidence(
 def test_duplicate_fact_ids_are_rejected() -> None:
     with pytest.raises(InventoryError, match="Fact IDs must be unique"):
         inventory(fact(FactKey.SCF_CONVERGED, True), fact(FactKey.SCF_CONVERGED, False))
+
+
+@pytest.mark.parametrize("value", [0, 1])
+def test_duplicate_calculation_fact_keys_are_rejected_even_with_distinct_ids(value: int) -> None:
+    first = fact(FactKey.EXCITED_STATE_COUNT, 1)
+    second = replace(first, id="another-source", value=value)
+    with pytest.raises(InventoryError, match="unique per calculation and fact key"):
+        inventory(first, second)
+
+
+def test_the_same_fact_key_is_allowed_for_distinct_calculations() -> None:
+    first = fact(FactKey.EXCITED_STATE_COUNT, 1, calculation_id="first")
+    second = fact(FactKey.EXCITED_STATE_COUNT, 2, calculation_id="second")
+    assert inventory(first, second).facts == (first, second)
+
+
+def test_multiple_state_values_remain_one_list_fact() -> None:
+    states = replace(fact(FactKey.SINGLET_STATE_ENERGY_EV, 0), value=(2.1, 2.4, 3.0))
+    assert inventory(states).facts[0].value == (2.1, 2.4, 3.0)
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf")])
+@pytest.mark.parametrize("as_list", [False, True])
+def test_nonfinite_float_facts_are_rejected(value: float, as_list: bool) -> None:
+    with pytest.raises(ValueError, match="non-finite"):
+        replace(fact(FactKey.SINGLET_STATE_ENERGY_EV, 0), value=(2.0, value) if as_list else value)
+
+
+def test_explicit_none_remains_a_fact_without_a_numeric_value() -> None:
+    absent_value = replace(fact(FactKey.SINGLET_TRIPLET_GAP_EV, 0), value=None)
+    assert inventory(absent_value).facts[0].value is None
+
+
+@pytest.mark.parametrize("operator", [
+    FactPredicateOperator.NONNEGATIVE_FINITE, FactPredicateOperator.UNIT_INTERVAL,
+])
+@pytest.mark.parametrize("value", [None, False, True, "0.5", -0.1, float("nan"), float("inf")])
+def test_numeric_domain_predicates_refuse_invalid_values(
+    operator: FactPredicateOperator, value: ScalarValue | None,
+) -> None:
+    assert not FactPredicate(FactKey.HOLE_ELECTRON_SR_INDEX, operator).accepts(value)
+
+
+@pytest.mark.parametrize("value", [0, 0.0, 0.5, 1, 1.0])
+def test_numeric_domain_predicates_preserve_closed_interval_endpoints(value: ScalarValue) -> None:
+    for operator in (FactPredicateOperator.NONNEGATIVE_FINITE, FactPredicateOperator.UNIT_INTERVAL):
+        assert FactPredicate(FactKey.HOLE_ELECTRON_SR_INDEX, operator).accepts(value)
+
+
+def test_nonnegative_distance_predicate_has_no_universal_upper_threshold() -> None:
+    assert FactPredicate(
+        FactKey.HOLE_ELECTRON_D_INDEX, FactPredicateOperator.NONNEGATIVE_FINITE,
+    ).accepts(10**1000)
+    assert not FactPredicate(
+        FactKey.HOLE_ELECTRON_SR_INDEX, FactPredicateOperator.UNIT_INTERVAL,
+    ).accepts(1.01)
 
 
 def test_duplicate_evidence_ids_are_rejected() -> None:

@@ -77,12 +77,12 @@ def test_facts_from_different_calculations_do_not_combine() -> None:
     """A gap assembled from two different jobs is not one derivation."""
     protocol = get_protocol(TADF)
     together = inventory(
-        fact(FactKey.SINGLET_STATE_ENERGY_EV, 2.85, calculation_id="calc-1"),
-        fact(FactKey.TRIPLET_STATE_ENERGY_EV, 2.77, calculation_id="calc-1"),
+        fact(FactKey.SINGLET_STATE_ENERGY_EV, (2.85,), calculation_id="calc-1"),
+        fact(FactKey.TRIPLET_STATE_ENERGY_EV, (2.77,), calculation_id="calc-1"),
     )
     split = inventory(
-        fact(FactKey.SINGLET_STATE_ENERGY_EV, 2.85, calculation_id="calc-1"),
-        fact(FactKey.TRIPLET_STATE_ENERGY_EV, 2.77, calculation_id="calc-2"),
+        fact(FactKey.SINGLET_STATE_ENERGY_EV, (2.85,), calculation_id="calc-1"),
+        fact(FactKey.TRIPLET_STATE_ENERGY_EV, (2.77,), calculation_id="calc-2"),
     )
     assert derive_evidence(protocol, together)
     assert derive_evidence(protocol, split) == ()
@@ -91,7 +91,7 @@ def test_facts_from_different_calculations_do_not_combine() -> None:
 def test_a_partial_match_is_not_scaled_down_into_weaker_evidence() -> None:
     """Inventing a weaker derivation would be a judgement nobody declared."""
     protocol = get_protocol(TADF)
-    one_of_two = inventory(fact(FactKey.SINGLET_STATE_ENERGY_EV, 2.85))
+    one_of_two = inventory(fact(FactKey.SINGLET_STATE_ENERGY_EV, (2.85,)))
     assert derive_evidence(protocol, one_of_two) == ()
 
 

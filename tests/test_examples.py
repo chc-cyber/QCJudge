@@ -8,6 +8,10 @@ in any environment.
 
 from __future__ import annotations
 
+import json
+import os
+import subprocess
+import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -24,6 +28,7 @@ from qcjudge.parsers import OrcaOutputParser
 from qcjudge.protocols import get_protocol
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "examples"
+CT_ANALYSIS_EXAMPLE = "04-charge-transfer-analysis"
 
 # example directory, family, question, expected axes and overall status
 CASES: tuple[tuple[str, QuestionFamily, str, str, str, str], ...] = (
@@ -84,7 +89,7 @@ def _audit_example(
     )
 
 
-@pytest.mark.parametrize("name", [case[0] for case in CASES])
+@pytest.mark.parametrize("name", [*(case[0] for case in CASES), CT_ANALYSIS_EXAMPLE])
 def test_every_example_ships_an_input_file(name: str) -> None:
     assert (EXAMPLES / name / "job.out").exists()
     assert (EXAMPLES / name / "README.md").exists()
@@ -143,8 +148,8 @@ def test_the_third_example_is_capped_by_design() -> None:
     assert requirement_status["tadf.risc_coupling"] is AssessmentStatus.INSUFFICIENT
 
 
-def test_no_example_claims_full_support() -> None:
-    """None of them can: the evidence types that would are not produced by the parser."""
+def test_parser_only_examples_do_not_claim_full_support() -> None:
+    """These examples lack the external analyses needed for their required evidence."""
     for name, family, question_text, *_expected in CASES:
         _result, report = _audit_example(name, family, question_text)
         assert report.overall_evidence_status is not AssessmentStatus.SUPPORTED, name
@@ -171,3 +176,72 @@ def test_the_documented_expert_review_command_works() -> None:
     ]
     assert flagged and flagged[0].expert_review_required
     assert "mixes rotation with bending" in flagged[0].rationale
+
+
+@pytest.mark.parametrize(
+    ("with_analysis", "expected"),
+    [(True, "supported"), (False, "insufficient")],
+    ids=["linked-analysis", "calculation-only"],
+)
+def test_the_charge_transfer_example_runs_through_the_actual_cli(
+    with_analysis: bool, expected: str
+) -> None:
+    """The documented import supplies the missing coverage without changing execution."""
+    root = EXAMPLES.parent
+    example = EXAMPLES / CT_ANALYSIS_EXAMPLE
+    argv = [
+        sys.executable,
+        "-m",
+        "qcjudge.cli.main",
+        "audit",
+        "--question",
+        "ct_excitation",
+        "--input",
+        str(example / "job.out"),
+        "--context",
+        "molecule=demo-ct",
+        "--context",
+        "state=S1",
+        "--format",
+        "json",
+    ]
+    if with_analysis:
+        argv.extend(["--analysis", str(example / "analysis.json")])
+    environment = dict(os.environ)
+    existing = environment.get("PYTHONPATH")
+    environment["PYTHONPATH"] = (
+        f"{root / 'src'}{os.pathsep}{existing}" if existing else str(root / "src")
+    )
+    completed = subprocess.run(
+        argv,
+        cwd=root,
+        env=environment,
+        capture_output=True,
+        encoding="utf-8",
+        timeout=30,
+        check=False,
+    )
+
+    assert completed.returncode == 0, completed.stderr
+    document = json.loads(completed.stdout)
+    assert document["execution"]["status"] == "pass"
+    assert document["evidence"]["overall_status"] == expected
+    assert document["audit_scope"]["association_issue"] is None
+    assert document["question"]["context"] == {"molecule": "demo-ct", "state": "S1"}
+    expected_ids = ["calc-1", "demo-ct-s1-hole-electron"] if with_analysis else ["calc-1"]
+    assert document["audit_scope"]["selected_calculation_ids"] == expected_ids
+    adapted = [fact for fact in document["inventory"]["facts"] if fact["origin"] == "adapter"]
+    if with_analysis:
+        assert {fact["key"] for fact in adapted} == {
+            "hole_electron.d_index_angstrom", "hole_electron.sr_index"
+        }
+        assert all(
+            fact["provenance"]["producer"] == "qcjudge.adapter.synthetic-demo"
+            and fact["subject"]["calculation_id"] == "demo-ct-s1-hole-electron"
+            and fact["subject"]["source_calculation_id"] == "calc-1"
+            and fact["subject"]["molecule"] == "demo-ct"
+            and fact["subject"]["state"] == "S1"
+            for fact in adapted
+        )
+    else:
+        assert adapted == []

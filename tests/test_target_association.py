@@ -323,7 +323,7 @@ def test_unused_researcher_conditions_survive_the_json_report(tmp_path: Path) ->
     assert report.overall_evidence_status is AssessmentStatus.SUPPORTED
     assert dict(report.conditions) == conditions
     assert document["schema"] == "qcjudge.audit_report/2"
-    assert document["protocol"]["version"] == "1.1.0"
+    assert document["protocol"]["version"] == "1.1.1"
     assert document["researcher_inputs"]["conditions"] == conditions
 
 

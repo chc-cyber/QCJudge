@@ -165,6 +165,9 @@ class ExtractedFact:
             raise ValueError(
                 "A user assertion is not a fact: it cites no file and carries no provenance"
             )
+        values = self.value if isinstance(self.value, tuple) else (self.value,)
+        if any(isinstance(value, float) and not isfinite(value) for value in values):
+            raise ValueError("Extracted facts must not contain non-finite numeric values")
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,6 +282,9 @@ class FactPredicateOperator(StrEnum):
     IS_TRUE = "is_true"
     POSITIVE_INTEGER = "positive_integer"
     NONZERO_FINITE = "nonzero_finite"
+    NONNEGATIVE_FINITE = "nonnegative_finite"
+    UNIT_INTERVAL = "unit_interval"
+    NONEMPTY_FINITE_NUMERIC_TUPLE = "nonempty_finite_numeric_tuple"
 
 
 @dataclass(frozen=True, slots=True)
@@ -291,10 +297,23 @@ class FactPredicate:
     def accepts(self, value: ScalarValue | tuple[ScalarValue, ...] | None) -> bool:
         if self.operator is FactPredicateOperator.IS_TRUE:
             return value is True
+        if self.operator is FactPredicateOperator.NONEMPTY_FINITE_NUMERIC_TUPLE:
+            return isinstance(value, tuple) and bool(value) and all(
+                not isinstance(item, bool)
+                and isinstance(item, (int, float))
+                and (not isinstance(item, float) or isfinite(item))
+                for item in value
+            )
         if isinstance(value, bool) or not isinstance(value, (int, float)):
             return False
+        if isinstance(value, float) and not isfinite(value):
+            return False
         if self.operator is FactPredicateOperator.NONZERO_FINITE:
-            return value != 0 if isinstance(value, int) else isfinite(value) and value != 0
+            return value != 0
+        if self.operator is FactPredicateOperator.NONNEGATIVE_FINITE:
+            return value >= 0
+        if self.operator is FactPredicateOperator.UNIT_INTERVAL:
+            return 0 <= value <= 1
         if isinstance(value, int):
             return value > 0
         return value > 0 and value.is_integer()
@@ -337,6 +356,9 @@ class EvidenceInventory:
         fact_ids = [fact.id for fact in self.facts]
         if len(set(fact_ids)) != len(fact_ids):
             raise InventoryError("Fact IDs must be unique")
+        fact_keys = [(fact.subject.calculation_id, fact.key) for fact in self.facts]
+        if len(set(fact_keys)) != len(fact_keys):
+            raise InventoryError("Facts must be unique per calculation and fact key")
         evidence_ids = [item.id for item in self.evidence]
         if len(set(evidence_ids)) != len(evidence_ids):
             raise InventoryError("Evidence IDs must be unique")

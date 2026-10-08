@@ -99,6 +99,10 @@ numeric 0/1 cannot substitute for a flag. `tddft.state_count` accepts non-negati
 not booleans or fractional/float counts. Zero states remain a fact but do not identify an excitation.
 Other values must be finite numbers; D is non-negative, Sr and NTO contribution are in [0,1],
 and signed SOC values are retained. These are quantity domains, not universal CT/TADF thresholds.
+The domain also refuses nonfinite fact values (including list elements) and multiple facts with
+the same key for one calculation. CT's derivation checks numerical descriptor domains even when
+facts come through the public API instead of this adapter; null or boolean indicators cannot
+establish a numerical spatial analysis.
 
 ## Associating an analysis with its target
 

@@ -1,0 +1,26 @@
+{
+  "format": "qcjudge.analysis_import/1",
+  "analysis": "hole_electron",
+  "description": "Synthetic demonstration values; no external analysis tool was run.",
+  "producer": "synthetic-demo",
+  "producer_version": "1",
+  "source_file": "examples/04-charge-transfer-analysis/analysis.json",
+  "calculations": [
+    {
+      "calculation_id": "demo-ct-s1-hole-electron",
+      "source_calculation_id": "calc-1",
+      "molecule": "demo-ct",
+      "state": "S1",
+      "values": {
+        "hole_electron.d_index_angstrom": {
+          "value": 2.4,
+          "unit": "angstrom"
+        },
+        "hole_electron.sr_index": {
+          "value": 0.3,
+          "unit": "dimensionless"
+        }
+      }
+    }
+  ]
+}

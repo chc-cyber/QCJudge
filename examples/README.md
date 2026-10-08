@@ -1,6 +1,6 @@
 # Worked examples
 
-Three synthetic ORCA-format outputs, each chosen to make one point about what an audit can and cannot
+Four synthetic ORCA-format outputs, each chosen to make one point about what an audit can and cannot
 conclude. Every file is synthetic but uses ORCA's own printed wording and layout, so the
 parser reads it exactly as it reads the real corpus.
 
@@ -12,13 +12,14 @@ to read.
 | 1 | [One imaginary frequency](#1-one-imaginary-frequency-is-not-a-pathway) | PASS | PASS | `PARTIALLY_SUPPORTED` |
 | 2 | [A converged minimum](#2-a-converged-minimum-is-not-a-saddle-point) | PASS | FAIL | `CONTRADICTED` |
 | 3 | [A small singlet-triplet gap](#3-a-small-gap-is-not-a-risc-channel) | PASS | UNKNOWN | `PARTIALLY_SUPPORTED` |
+| 4 | [Linked CT analysis](04-charge-transfer-analysis/README.md) | PASS | UNKNOWN | `SUPPORTED` with analysis; `INSUFFICIENT` without |
 
 Read together they are the project's claim in one page: **a calculation can succeed, and the
-evidence can still be insufficient or even contradicted.** No example reports `SUPPORTED`, and
-that is the honest result, not a shortcoming of the examples — the evidence types that would
-support these claims (hole-electron analysis, spin-orbit couplings, IRC) come from analyses
-QCJudge does not compute. The implemented JSON adapter can import those facts with source
-association; user assertions stay capped at WEAK/INDIRECT.
+evidence can still be insufficient or even contradicted.** The first three examples omit external
+analyses and expose the resulting gaps. Example 4 supplies an explicitly synthetic, linked
+hole-electron export through the JSON adapter. Its `SUPPORTED` outcome demonstrates protocol
+coverage and provenance, not independent chemical validation or a numerical CT threshold.
+User assertions stay capped at WEAK/INDIRECT.
 
 ## Running one
 
@@ -46,7 +47,7 @@ inspected nor the path followed.
 This is the case most likely to be over-read. The report says so in the protocol's own words:
 *one imaginary frequency identifies local Hessian order, not pathway identity.* To close the
 gap, supply `--condition mode_correspondence=...` if you have judged the mode, or IRC evidence
-once an adapter can carry it.
+through the implemented adapter.
 
 ## 2. A converged minimum is not a saddle point
 

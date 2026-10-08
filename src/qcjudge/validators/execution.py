@@ -85,15 +85,25 @@ def first_order_saddle_point(ctx: AuditContext) -> RuleOutcome:
             + absence_note(ctx, FactKey.FREQUENCY_IMAGINARY_COUNT),
         )
     if observed and expected:
-        if len(observed) != len(expected):
+        observed_by_calculation = {
+            fact.subject.calculation_id: fact.value
+            for fact in ctx.inventory.facts_by_key(FactKey.FREQUENCY_OBSERVED_MODE_COUNT)
+            if isinstance(fact.value, int) and not isinstance(fact.value, bool)
+        }
+        expected_by_calculation = {
+            fact.subject.calculation_id: fact.value
+            for fact in ctx.inventory.facts_by_key(FactKey.FREQUENCY_EXPECTED_MODE_COUNT)
+            if isinstance(fact.value, int) and not isinstance(fact.value, bool)
+        }
+        if observed_by_calculation.keys() != expected_by_calculation.keys():
             return RuleOutcome(
                 ValidationStatus.UNKNOWN,
                 "Mode-list completeness could not be verified for every calculation.",
             )
         incomplete = [
-            (present, wanted)
-            for present, wanted in zip(observed, expected, strict=True)
-            if present != wanted
+            (observed_by_calculation[calculation_id], expected_by_calculation[calculation_id])
+            for calculation_id in sorted(observed_by_calculation)
+            if observed_by_calculation[calculation_id] != expected_by_calculation[calculation_id]
         ]
         if incomplete:
             present, wanted = incomplete[0]

@@ -120,8 +120,9 @@ have proved easy to test on one side only and therefore worth calling out:
 
 ## Minimal dependencies
 
-The runtime core uses only the Python standard library. Development extras are pytest, Ruff, and
-mypy; Hatchling builds the package. A later ORCA parser adapter may optionally depend on cclib after
+The runtime core uses only the Python standard library. Development extras are pytest, Ruff,
+mypy and Hypothesis; Hatchling builds the package. A later ORCA parser adapter may optionally depend
+on cclib after
 its capability and license are reviewed. CLI parsing uses `argparse`; richer UI
 dependencies are not justified yet.
 
@@ -155,9 +156,12 @@ dependencies are not justified yet.
    non-terminating file withholds list observations, an unexamined scope reports `UNKNOWN`, and
    the parser-to-audit path is covered end to end against the real corpus.
 5. **CLI and reports (done):** free-text questions, documented exit codes, stable structured
-   output, golden reports, three examples and tested researcher input channels.
+   output, golden reports, four examples and tested researcher input channels.
 6. **Adapter seam (done):** attributed JSON import of hole-electron/NTO/SOC/IRC facts; explicit
    source association and quantity validation. No external analysis algorithm is reimplemented.
-7. **Hardening (in progress):** protocol 1.1.0 closes false-SUPPORTED paths; report schema 2 records
-   scope and researcher inputs. Local Git history exists. Actual remote CI, broader real cases,
-   property tests and cross-version replay remain release work. LLM integration stays deferred.
+7. **Hardening (in progress):** all three built-in protocols are 1.1.1, closing invalid-value
+   false-SUPPORTED paths;
+   report schema 2 records scope and researcher inputs. Facts reject nonfinite numbers and
+   duplicate calculation/key pairs. Hypothesis tests exercise target graphs, values and ordering;
+   local audit bundles preserve raw inputs and compare replays. Actual remote CI, independent
+   expert cases and compatibility across released versions remain release work. LLM stays deferred.

@@ -1,0 +1,35 @@
+QCJudge synthetic demonstration: this text was written for an import-flow example.
+It is not the output of a real ORCA calculation or a measured chemical system.
+
+                  *****************
+                  * O   R   C   A *
+                  *****************
+
+Program Version 5.0.4 - RELEASE
+
+------------------
+INPUT FILE
+------------------
+|  1> ! B3LYP def2-TZVP
+|  2> %tddft nroots 2 end
+|  3> * xyz 0 1
+|  4> C  0.000000  0.000000  0.000000
+|  5> C  0.000000  0.000000  1.400000
+|  6> *
+|  7>
+
+Total Charge    Charge    0
+Multiplicity    Mult    1
+
+SCF CONVERGED AFTER  11 CYCLES
+
+<S**2>                :     0.000000
+
+------------------------------------
+TD-DFT/TDA EXCITED STATES (SINGLETS)
+------------------------------------
+
+STATE  1:  E=   0.115000 au      3.129 eV    25235.0 cm**-1
+STATE  2:  E=   0.142000 au      3.864 eV    31162.4 cm**-1
+
+ORCA TERMINATED NORMALLY

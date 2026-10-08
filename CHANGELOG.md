@@ -5,6 +5,26 @@ public API stabilizes.
 
 ## Unreleased
 
+### 2026-10-08 local preview preparation (0.1.0.dev2)
+
+- Added Hypothesis development tests for evidence isolation, value domains, execution/evidence
+  separation and input-order independence. Runtime dependencies remain empty.
+- Facts reject nonfinite numbers and duplicate calculation/key pairs. All built-in protocols
+  advance to 1.1.1: null/boolean/out-of-domain CT indicators and empty or nonnumeric TADF energy
+  manifolds cannot derive positive numerical evidence. Hessian completeness pairs observed/expected
+  counts by calculation identity. Quantity domains do not introduce a universal CT/TADF
+  significance threshold; finite negative energy values remain valid.
+- Added `tools/audit_bundle.py` and `docs/replay.md`: exact raw bytes, SHA-256, all audit options,
+  baseline report/diagnostics and versions can be saved and replayed after relocation. Version
+  drift is explicit; the report comparison excludes clocks and version identifiers only.
+  This is a replay foundation, not a completed cross-version compatibility benchmark.
+- Added a clearly synthetic complete CT import example with explicit source association, plus
+  the missing-analysis counterpart. Added ordinary user installation/quick-start instructions
+  and a local release checklist; removed placeholder repository metadata URLs. Hypothesis caches
+  are excluded from source distributions.
+- The candidate remains an unpublished development preview. GitHub and actual remote CI remain
+  deferred by the project owner; independent expert-labelled evaluation remains pending.
+
 ### 2026-10-07 hardening (0.1.0.dev1)
 
 - Built-in protocols advance to 1.1.0. Scientific rationale: a supplied fact does not imply a
@@ -265,4 +285,3 @@ reading the real output already on disk rather than the fixtures.
   detected before the bytes are written instead of after, timeouts and short reads are caught
   rather than crashing, and a pinned commit is no longer re-resolved. Covered by
   `tests/test_fetch_benchmark_data.py`.
-

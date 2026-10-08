@@ -26,7 +26,7 @@ from qcjudge.evidence.selection import select_inventory
 from qcjudge.protocols import get_protocol
 from qcjudge.validators import resolve
 
-TOOL_VERSION = "0.1.0.dev1"
+TOOL_VERSION = "0.1.0.dev2"
 
 
 def run_validation_rules(

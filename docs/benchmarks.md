@@ -208,8 +208,9 @@ Accuracy is the wrong headline metric for an auditor. Report these instead:
    The target is exactly zero, asserted as an invariant rather than a score.
 4. **Trace completeness.** Fraction of SUPPORTED assessments whose every cited fact resolves
    to a file and a location.
-5. **Reproducibility.** Identical inputs and protocol version must produce byte-identical
-   reports.
+5. **Reproducibility.** Identical inputs and protocol version must produce the same report
+   content after excluding creation/extraction timestamps. The replay tool separately checks
+   versions and parser diagnostics; see [the replay procedure](replay.md).
 
 ## 7. Licence matrix
 
@@ -231,15 +232,22 @@ the distribution, and keeps the BSD-3-Clause licence of QCJudge honest.
 
 ## 8. Adoption order
 
-1. **Now, with M1.** Synthetic fixtures only. Enough for the seventeen acceptance rows in
-   `docs/v0.1-plan.md` section 11. Those rows exercise the engine from hand-built inventories,
-   so they cannot see the parser at all; the parser-to-audit path needs its own tests against
-   real files, which is what `tests/test_end_to_end.py` now does.
-2. **With M2.** Add a cclib-data ORCA fetch script; real log files for parser regressions.
-3. **With M3.** Add CCCBDB reference checks, including the D0/De rule.
-4. **With M4.** Build the Route A ablation generator, using LJCT and the Stein dataset to
-   produce the three CT evidence tiers.
-5. **With M5.** Recruit one or two domain experts for a small Route B set.
+Measured local adoption as of 2026-10-08:
+
+- **Implemented:** synthetic acceptance cases, parser-to-audit regressions, 12 pinned real ORCA
+  output files fetched by `tools/fetch_benchmark_data.py`, generated behavior checks, and local
+  raw-input/checksum replay bundles. The complete CT example is explicitly synthetic.
+- **Pending:** independent expert labels for evidence adequacy and scientific validation of
+  state identity, donor/acceptor interpretation and coupling significance. The current tests do
+  not measure a real-world false-SUPPORTED rate.
+- **Candidates:** the external datasets discussed above are research directions, not integrated
+  benchmark claims. Verify their current access, licence and fit before adoption. No CCCBDB
+  reference evaluator or LJCT/Stein ablation generator is implemented in V0.1.
+
+Prioritize a small set of reviewable expert-labelled cases, preserving original inputs,
+assumptions, versions and expected requirement-level outcomes. Then extend the ablation
+generator around those cases. Replaying a few examples across development versions does not
+complete the full compatibility gate.
 
 One further recommendation: publish the benchmark *generator*, not just the results. Since
 the L4 layer has no prior art, a results-only release would leave our labels unverifiable.

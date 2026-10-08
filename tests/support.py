@@ -55,7 +55,7 @@ def provenance(
 
 def fact(
     key: FactKey,
-    value: ScalarValue,
+    value: ScalarValue | tuple[ScalarValue, ...],
     *,
     calculation_id: str = CALCULATION_ID,
     unit: str | None = None,
@@ -178,8 +178,8 @@ def tadf_question() -> ResearchQuestion:
 def tadf_facts() -> tuple[ExtractedFact, ...]:
     return (
         *converged_calculation(),
-        fact(FactKey.SINGLET_STATE_ENERGY_EV, 2.85, unit="eV"),
-        fact(FactKey.TRIPLET_STATE_ENERGY_EV, 2.77, unit="eV"),
+        fact(FactKey.SINGLET_STATE_ENERGY_EV, (2.85,), unit="eV"),
+        fact(FactKey.TRIPLET_STATE_ENERGY_EV, (2.77,), unit="eV"),
         fact(FactKey.SINGLET_TRIPLET_GAP_EV, 0.08, unit="eV"),
     )
 

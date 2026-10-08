@@ -3,7 +3,7 @@ QCJudge scientific audit
 Question
 Is this structure the transition state for the rotation step?
 context: molecule=dvb
-protocol: transition_state 1.1.0
+protocol: transition_state 1.1.1
 audit calculations: calc-1
 this protocol supports at most: The structure is a first-order saddle point and the mode or path evidence connects it to the proposed step. The protocol never asserts that it is the transition state of the real reaction.
 

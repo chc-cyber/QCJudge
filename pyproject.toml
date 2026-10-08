@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "qcjudge"
-version = "0.1.0.dev1"
+version = "0.1.0.dev2"
 description = "Question-centered evidence auditing for computational chemistry"
 readme = "README.md"
 requires-python = ">=3.12"
@@ -24,14 +24,11 @@ qcjudge = "qcjudge.cli.main:main"
 
 [project.optional-dependencies]
 dev = [
+  "hypothesis>=6.112",
   "mypy>=1.11",
   "pytest>=8.3",
   "ruff>=0.6",
 ]
-
-[project.urls]
-Documentation = "https://github.com/qcjudge/qcjudge"
-Repository = "https://github.com/qcjudge/qcjudge"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/qcjudge"]

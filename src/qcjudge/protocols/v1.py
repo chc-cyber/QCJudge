@@ -57,7 +57,7 @@ _CT_CHARACTER_CLAIM = Claim(
 
 CHARGE_TRANSFER_V1 = ScientificProtocol(
     id="charge_transfer",
-    version="1.1.0",
+    version="1.1.1",
     question_family=QuestionFamily.CHARGE_TRANSFER_EXCITATION,
     hypotheses=(_CT_HYPOTHESIS,),
     claims=(_CT_STATE_CLAIM, _CT_CHARACTER_CLAIM),
@@ -169,6 +169,12 @@ CHARGE_TRANSFER_V1 = ScientificProtocol(
                 FactKey.HOLE_ELECTRON_D_INDEX,
                 FactKey.HOLE_ELECTRON_SR_INDEX,
             ),
+            fact_predicates=(
+                FactPredicate(
+                    FactKey.HOLE_ELECTRON_D_INDEX, FactPredicateOperator.NONNEGATIVE_FINITE,
+                ),
+                FactPredicate(FactKey.HOLE_ELECTRON_SR_INDEX, FactPredicateOperator.UNIT_INTERVAL),
+            ),
             description=(
                 "A hole-electron analysis exported the spatial descriptors of the target "
                 "excitation: the average hole-electron distance and the overlap between "
@@ -184,6 +190,11 @@ CHARGE_TRANSFER_V1 = ScientificProtocol(
             id="ct.spatial_from_nto_pair",
             evidence_type=EvidenceType.NTO_ANALYSIS,
             required_fact_keys=(FactKey.NTO_DOMINANT_PAIR_CONTRIBUTION,),
+            fact_predicates=(
+                FactPredicate(
+                    FactKey.NTO_DOMINANT_PAIR_CONTRIBUTION, FactPredicateOperator.UNIT_INTERVAL,
+                ),
+            ),
             description=(
                 "A natural-transition-orbital analysis reported how completely the transition "
                 "is described by its dominant orbital pair. A single dominant pair means the "
@@ -239,7 +250,7 @@ _TADF_EMISSIVE_CLAIM = Claim(
 
 TADF_V1 = ScientificProtocol(
     id="tadf",
-    version="1.1.0",
+    version="1.1.1",
     question_family=QuestionFamily.TADF_POTENTIAL,
     hypotheses=(_TADF_HYPOTHESIS,),
     claims=(_TADF_GAP_CLAIM, _TADF_RISC_CLAIM, _TADF_EMISSIVE_CLAIM),
@@ -335,6 +346,16 @@ TADF_V1 = ScientificProtocol(
                 FactKey.SINGLET_STATE_ENERGY_EV,
                 FactKey.TRIPLET_STATE_ENERGY_EV,
             ),
+            fact_predicates=(
+                FactPredicate(
+                    FactKey.SINGLET_STATE_ENERGY_EV,
+                    FactPredicateOperator.NONEMPTY_FINITE_NUMERIC_TUPLE,
+                ),
+                FactPredicate(
+                    FactKey.TRIPLET_STATE_ENERGY_EV,
+                    FactPredicateOperator.NONEMPTY_FINITE_NUMERIC_TUPLE,
+                ),
+            ),
             description=(
                 "Both the singlet and the triplet manifold were reported with energies. "
                 "This is a MODERATE, DIRECT statement that the two manifolds were "
@@ -409,7 +430,7 @@ _TS_PATHWAY_CLAIM = Claim(
 
 TRANSITION_STATE_V1 = ScientificProtocol(
     id="transition_state",
-    version="1.1.0",
+    version="1.1.1",
     question_family=QuestionFamily.TRANSITION_STATE_VALIDATION,
     hypotheses=(_TS_HYPOTHESIS,),
     claims=(_TS_SADDLE_CLAIM, _TS_PATHWAY_CLAIM),

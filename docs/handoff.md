@@ -1,6 +1,6 @@
 # QCJudge — agent handoff
 
-Updated 2026-10-07 after the M5 hardening pass. M0-M4 are complete; M5 is in progress.
+Updated 2026-10-08 after local preview preparation. M0-M4 are complete; M5 is in progress.
 The local measurements below include the real ORCA corpus. Where the plan and this file disagree,
 use this file's latest measurement and correct the plan.
 
@@ -118,7 +118,7 @@ validators/execution.py convergence and Hessian order
 validators/methodology.py consistency checks
 validators/target_state.py explicit S/T index bounds, without interpreting state identity
 
-protocols/v1.py         the three built-in protocols, currently version 1.1.0
+protocols/v1.py         the three built-in protocols, currently version 1.1.1
 
 domain/                pure types; imports nothing but stdlib + errors
 ```
@@ -177,28 +177,37 @@ objects.
 
 | Check | Command | Result |
 | --- | --- | --- |
-| Tests | `python -m pytest -q -rs` | **548 collected: 546 passed, 2 skipped, 0 failed** |
+| Tests | `python -m pytest -q -rs` | **660 collected: 658 passed, 2 skipped, 0 failed** |
 | Types | `mypy --strict src/qcjudge` | clean, **40 files** |
 | Lint | `ruff check .` | clean |
 | Format | `ruff format --check` | **not a gate** — see D-33 |
 | Real corpus | `python tools/fetch_benchmark_data.py --verify` | all 12 pinned files verified |
-| Packaging | wheel build, independent install and isolated CLI check | `0.1.0.dev1` verified |
-| Repository | local Git on `main` | baseline `22c0d25` plus this hardening change; no remote configured |
+| Packaging | wheel build, independent install and isolated CLI check | `0.1.0.dev2` verified |
+| Repository | local Git on `main` | local snapshots and hardening history; no remote configured |
 
 Both skips are the root-facade cases in `tests/test_layering.py`: the package root has no declared
 import restrictions. The previous handoff incorrectly attributed them to missing corpus files.
 All real-corpus tests run in this measurement. This is Windows/Python 3.12 validation; it is not
 evidence that the full remote OS/Python matrix has passed.
 
-Current compatibility identifiers: package `0.1.0.dev1`, report `qcjudge.audit_report/2`, built-in
-protocols `1.1.0`, ORCA parser `0.4.0`, analysis adapter `0.2.0`. Schema 2 adds audit scope,
+Current compatibility identifiers: package `0.1.0.dev2`, report `qcjudge.audit_report/2`, built-in
+protocols `1.1.1`, ORCA parser `0.4.0`, analysis adapter `0.2.0`. Schema 2 adds audit scope,
 full researcher inputs and subject association fields; consumers of schema 1 need an update.
 
-The final wheel at `.test-scratch/dist-final/qcjudge-0.1.0.dev1-py3-none-any.whl` was installed
+The final wheel at `.test-scratch/dist-dev2/qcjudge-0.1.0.dev2-py3-none-any.whl` was installed
 in a fresh independent environment; `python -I tools/verify_installed_package.py` passed. All
 40 packaged Python modules match the final source byte-for-byte. Wheel SHA-256:
-`78303e077ac716d96804e7b565c27a345c035ead89399147096e43c6e7bdcd97`. The scratch
+`1e53e90383f2fb99635b08ed24c0bbf6f7361a94a431419f8b0732a552f41c47`. The scratch
 artifact is ignored and is not a published release.
+
+All four installed examples (five routes including CT without analysis) returned their documented
+verdicts and exit 0. TS and CT bundles created with the independently installed dev2 package
+replayed with matching reports, diagnostics and versions. Three introductory bundles created
+with the installed dev1 package were refused by dev2 by default for version drift; explicit
+`--allow-version-change` matched their report content and diagnostics. This is a limited
+Windows/Python 3.12 development-version check, not compatibility for changed pathological
+inputs, schema 1 or general released versions. Full measurements are saved locally in
+`.test-scratch/dist-dev2/installed-validation.json`.
 
 ### 5.2 Milestones
 
@@ -210,13 +219,13 @@ artifact is ignored and is not a published release.
 | M2.5 End-to-end status correctness | complete |
 | M3 CLI and reports | complete |
 | M4 Adapter seam | complete |
-| M5 Hardening and release | **in progress** — hardening and local wheel verified; remote CI, property tests, cross-version replay and tag pending |
+| M5 Hardening and release | **in progress** — generated tests and local replay implemented; expert-labelled evaluation, full cross-version compatibility, remote CI and tag pending |
 | M6 LLM layer | not started, deferred by design |
 
-### 5.3 Substantive defects found and closed (D-23 … D-32)
+### 5.3 Substantive defects found and closed (D-23 … D-44)
 
-Four were severity H. The important thing for a successor is the *class* of defect, because the
-same class will recur:
+The initial review included four severity-H defects. The important thing for a successor is the
+*class* of defect, because the same class will recur:
 
 **Status semantics** — the answer a user receives was wrong even though every unit test passed:
 
@@ -274,9 +283,28 @@ The 2026-10-07 hardening closes D-34 through D-40 (see the plan for the register
   by a positive total count; zero/empty sources without positive assignment remain coverage gaps.
   D-21 remains: choosing the scientifically relevant state needs more than an index check.
 - Schema 2 records every supplied researcher condition, expert flag and association field, including
-  inputs not consumed by a rule. This does not yet implement raw-input/checksum replay.
+  inputs not consumed by a rule. The 2026-10-08 bundle tool adds raw-input/checksum replay below.
 - The CI strategy now uses a legal direct matrix; each test job builds and independently checks a
   wheel. These steps are verified locally, while the actual remote matrix remains pending.
+
+The 2026-10-08 generated tests close D-41 through D-44:
+
+- The inventory rejects distinct IDs for the same calculation/key instead of silently letting
+  input order choose the evidence value. State manifolds remain one tuple-valued fact per key.
+- Facts reject nonfinite floating-point values, including tuple elements. Numeric CT predicates
+  also reject null, boolean, string and out-of-domain values from public custom-reader inputs.
+- TADF gap evidence requires two nonempty finite numeric energy tuples. Key presence with null,
+  false, empty or nonnumeric values cannot become positive evidence. Negative finite energies
+  remain valid; no significance threshold or relevant-state identification was added.
+- Hessian completeness pairs observed/expected mode counts by calculation ID, not list position.
+  Reordering facts cannot make a complete list appear incomplete or hide a true mismatch.
+- All three protocols advance to `1.1.1` because these guards can change an audit outcome. The
+  package is `0.1.0.dev2`; parser, adapter and report schema versions remain unchanged.
+
+Ordinary source/wheel installation is documented in the README, with a local release checklist
+in `docs/release-checklist.md`. Four worked examples now include a complete, explicitly synthetic
+CT import and its missing-analysis counterpart. These examples are not independent scientific
+ground truth.
 
 ### 5.4 Evidence coverage — measured, and the key number for a successor
 
@@ -327,6 +355,9 @@ By purpose, in the order they are worth reading:
 | --- | --- |
 | `test_acceptance_corpus.py` | Scenario matrix: technical success is independent of scientific sufficiency. |
 | `test_audit_separation.py` | The independence property as examples. |
+| `test_properties.py` | Hypothesis generation through public projection/audit: association, value domains, execution/evidence separation, absence and order invariants. |
+| `test_frequency_identity.py` | Mode-list completeness uses calculation identity even when fact orders disagree. |
+| `test_audit_bundle.py` | Exact bytes/arguments, relocation, tamper refusal, version drift and trusted-package isolation. |
 | `test_layering.py` | Import-boundary matrix over the source tree. |
 | `test_real_orca_output.py` | Real ORCA 2.6-5.0 outputs from the pinned corpus. |
 | `test_orca_parser.py`, `test_orca_job_boundaries.py` | Reader contract and complete/truncated/compound job isolation. |
@@ -341,8 +372,12 @@ By purpose, in the order they are worth reading:
 | `test_ci_configuration.py` | Actual matrix values and wheel-check commands/order. |
 | `test_fetch_benchmark_data.py` | Manifest refusal rules. |
 
-Support modules: `tests/support.py` (hand-built inventories), `tests/golden.py` (the one
-deterministic report), `tests/conftest.py` (scratch routing, §6.2).
+Support modules: `tests/support.py` (hand-built inventories), `tests/property_support.py`
+(synthetic custom-reader results and scientific signatures), `tests/golden.py` (the one
+deterministic report), `tests/conftest.py` (scratch routing, §6.2). Hypothesis is a development
+dependency only; generation is deterministic with at most 80 examples per property and no
+example database. The current suite includes 18 properties. Generated cases check implementation
+invariants, not molecular accuracy.
 
 ---
 
@@ -359,6 +394,8 @@ CI when the user resumes it. Publishing and Actions will then need the intended 
 Ready locally:
 
 - `.gitignore` excludes the venv, corpus, test/build scratch, caches and local `.workbuddy` memory.
+- `.hypothesis/` is ignored explicitly so generated-test constants/caches cannot enter source
+  distributions. This is separate from the disabled Hypothesis example database.
 - `.gitattributes` normalizes LF and preserves byte-for-byte fixtures with `tests/data/** -text`.
 - `.github/workflows/ci.yml` checks lint/types and tests Python 3.12/3.13 on Linux/macOS/Windows.
   Every test job also builds a wheel, replaces the editable installation from that local wheel,
@@ -414,6 +451,23 @@ gate is added without formatting the tree in the same change.
 - `mypy` and `ruff` need writable cache directories. Redirect them if the defaults are not writable:
   `MYPY_CACHE_DIR`, and `ruff check --no-cache`.
 
+### 6.5 Local replay foundation
+
+`tools/audit_bundle.py` records exact input bytes, SHA-256/byte counts, all CLI audit options,
+baseline JSON and parser diagnostics, tool/protocol/schema versions and Python/platform details.
+It snapshots sorted directory inputs so `calc-N` assignments survive relocation. The bundle
+must be a new directory; creation is atomic and replay leaves the baseline unchanged.
+
+Replay checks containment, hashes and the complete calculation input set. It runs an isolated
+Python child using the caller's trusted QCJudge package path, so code placed in the bundle cannot
+replace the installed package. Report comparison excludes only creation/extraction timestamps
+and tool/protocol version identifiers. Versions must match by default; `--allow-version-change`
+permits drift but still refuses changed report content or diagnostics. Producer versions remain
+compared. Checksums do not establish authorship or scientific truth.
+
+The tool lives in the source checkout, not the runtime wheel. See `docs/replay.md` for commands,
+exit codes and limits. Real released-version compatibility and schema migration remain M5 work.
+
 ---
 
 ## 7. The lesson that matters most for a successor
@@ -455,18 +509,18 @@ Ordered by value, with the honest reason for each.
 
 ### 8.1 Release work, in recommended order
 
-1. **Generative property tests.** Exercise association graphs, fact predicates, absence projection
-   and aggregation; preserve execution/evidence independence and prohibit cross-root support.
-2. **Replay contract.** Record raw input checksums and all audit arguments, then verify a saved
-   report can be replayed by a later version. Schema 2's researcher inputs are necessary but not
-   sufficient for this gate.
-3. **Broader expert-labelled cases.** Add redacted real examples covering failed IRC, state identity,
+1. **Broader expert-labelled cases.** Add redacted real examples covering failed IRC, state identity,
    mixed jobs and weak/zero coupling; keep labels and scientific assumptions reviewable.
-4. **D-13: actual remote CI, when resumed by the user.** Push to the intended GitHub destination
+2. **Extend the generated invariants and replay corpus around those cases.** Generation and the
+   raw-input/checksum bundle foundation are implemented. Verify compatibility across real
+   versions, including intended rule changes and report-schema migration; a few development
+   example replays are not a completed compatibility benchmark.
+3. **D-13: actual remote CI, when resumed by the user.** Push to the intended GitHub destination
    and inspect all six OS/Python combinations plus lint/types and installed-wheel checks. Record
    whether the real corpus was available. This task is currently deferred at the user's request.
-5. **Release review and `v0.1.0` tag.** Check dependency/attribution documentation, schema migration
-   guidance and every M5 gate. Keep the current `0.1.0.dev1` designation until they pass.
+4. **Release review and `v0.1.0` tag.** Follow `docs/release-checklist.md`, checking dependency/
+   attribution documentation, schema migration guidance and every M5 gate. Keep the current
+   `0.1.0.dev2` development designation until those gates pass.
 
 ### 8.2 Accepted documentation/design debt
 

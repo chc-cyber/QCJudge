@@ -23,6 +23,13 @@ to answer.
 
 ## Status
 
+The local version is `0.1.0.dev2`, a pre-alpha development preview. It has not been
+formally released. M0–M4 are complete; M5 hardening and release validation are in
+progress. Local tests, the pinned ORCA corpus, and an independently installed wheel
+have been checked on Windows with Python 3.12. The project owner has deferred the
+remote repository and real CI runs, so the configured platform matrix is still
+awaiting verification.
+
 The evidence kernel and the parser boundary are in place: a three-level reasoning chain from
 question through hypothesis and claim to evidence requirement, registered vocabularies instead
 of free strings, a protocol graph with alternative-evidence groups and dependency gating, a
@@ -41,18 +48,103 @@ unassessable. The deterministic engine contains no requirement or rule identifie
 
 The ORCA subset is validated against real output from ORCA 2.6 through 5.0, fetched on demand
 by `tools/fetch_benchmark_data.py` and verified against a pinned manifest; no third-party data
-is committed to this repository. Three worked examples under [`examples/`](examples/README.md)
+is committed to this repository. Worked examples under [`examples/`](examples/README.md)
 show what an audit concludes and what it refuses to. The adapter seam is implemented; current
 work is M5 hardening and release validation. See [the working plan](docs/v0.1-plan.md) for the debt
 register and milestone gates.
 
+## Install locally
+
+Use an existing checkout or a source archive supplied by the maintainer. Run the
+commands below from its root, containing `pyproject.toml` and `examples/`. There is
+currently no published package or download URL to use.
+
+QCJudge requires Python 3.12 or newer; the configured release checks target Python
+3.12 and 3.13. The package has no runtime dependencies. Check that the interpreter
+reports its version, then create an isolated environment and install from source.
+
+Windows PowerShell:
+
+```powershell
+py -3.12 --version
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install .
+```
+
+If the Windows Python launcher is unavailable, use the full path to a working
+Python 3.12 or 3.13 interpreter in place of `py -3.12`.
+
+Linux or macOS:
+
+```sh
+python3 --version
+python3 -m venv .venv
+./.venv/bin/python -m pip install .
+```
+
+A source installation obtains the build requirements declared in `pyproject.toml`.
+To build a wheel instead, replace the final source-install command above with the
+following two commands. The wheel installation itself is offline.
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -m pip wheel --no-deps --wheel-dir dist .
+.\.venv\Scripts\python.exe -m pip install --no-deps --no-index .\dist\qcjudge-0.1.0.dev2-py3-none-any.whl
+```
+
+Linux or macOS:
+
+```sh
+./.venv/bin/python -m pip wheel --no-deps --wheel-dir dist .
+./.venv/bin/python -m pip install --no-deps --no-index ./dist/qcjudge-0.1.0.dev2-py3-none-any.whl
+```
+
+If the maintainer supplies a wheel, skip the build and use that wheel's actual
+local path in the install command. Keep the checkout or source archive for the
+example inputs; the wheel installs the Python package and command line entry point.
+
+## Quick start
+
+These three introductory examples use synthetic inputs included in the project.
+They need no external data or chemistry software.
+
+Windows PowerShell:
+
+```powershell
+.\.venv\Scripts\qcjudge.exe audit --question transition_state --input examples/01-transition-state-mode-identity/job.out --context molecule=dvb
+.\.venv\Scripts\qcjudge.exe audit --question transition_state --input examples/02-converged-minimum-is-not-a-saddle/job.out --context molecule=dvb
+.\.venv\Scripts\qcjudge.exe audit --question tadf_potential --input examples/03-tadf-gap-is-not-a-risc-channel/job.out --context molecule=dvb
+```
+
+Linux or macOS:
+
+```sh
+./.venv/bin/qcjudge audit --question transition_state --input examples/01-transition-state-mode-identity/job.out --context molecule=dvb
+./.venv/bin/qcjudge audit --question transition_state --input examples/02-converged-minimum-is-not-a-saddle/job.out --context molecule=dvb
+./.venv/bin/qcjudge audit --question tadf_potential --input examples/03-tadf-gap-is-not-a-risc-channel/job.out --context molecule=dvb
+```
+
+| Example | Execution | Structure | Evidence |
+| --- | --- | --- | --- |
+| 1. Transition-state mode identity | PASS | PASS | PARTIALLY_SUPPORTED |
+| 2. A converged minimum is not a saddle | PASS | FAIL | CONTRADICTED |
+| 3. A TADF gap is not a RISC channel | PASS | UNKNOWN | PARTIALLY_SUPPORTED |
+
+All three commands exit `0`. Append `--format json` for a machine-readable report.
+See the [example explanations](examples/README.md) for their scientific boundaries,
+and [the CT analysis import example](examples/04-charge-transfer-analysis/README.md)
+for a fully associated external analysis that reaches `SUPPORTED`.
+
 ## Using the command line
+
+The commands below assume the environment's command directory is on your path.
+Otherwise use the explicit `qcjudge` path shown in the quick start.
 
 ```console
 qcjudge audit --question transition_state --input job.out --context molecule=dvb
 qcjudge audit --question transition_state --input job.out --context molecule=dvb --format json
-qcjudge audit --question transition_state --input job.out --context molecule=dvb \
-  --ask "Is this the transition state for the C-C rotation step?"
+qcjudge audit --question transition_state --input job.out --context molecule=dvb --ask "Is this the transition state for the C-C rotation step?"
 ```
 
 `--ask` records your question verbatim in the report; without it the report states the
@@ -74,8 +166,9 @@ among independent calculations; default parsed IDs are `calc-N` in sorted input-
 Optional `molecule` and `state` metadata are checked against the question.
 
 Reports use `qcjudge.audit_report/2`, recording the selected calculations, unresolved association,
-and complete researcher conditions and expert inputs. Built-in protocols are version `1.1.0`;
-explicit failed IRC outcomes and zero excited-state counts do not create positive evidence.
+and complete researcher conditions and expert inputs. All three built-in
+protocols are version `1.1.1`.
+Explicit failed IRC outcomes and zero excited-state counts do not create positive evidence.
 The ORCA reader evaluates only the first identifiable execution in a multi-job output and warns
 about later output. Split other jobs into separate inputs if they need auditing.
 
@@ -83,26 +176,36 @@ about later output. Split other jobs into separate inputs if they need auditing.
 evidence is insufficient, because the report is the deliverable. `2` means no audit could be
 produced. To branch on the finding, read `evidence.overall_status` from `--format json`.
 
+## Preview limitations
+
+The current scope is the three question families above and a documented subset of
+ORCA output, with the reader restricted to the first identifiable execution. Nine
+of the sixteen registered evidence types have no automated producer; other analyses
+must be supplied explicitly with units and provenance. See [scientific scope](docs/scientific-scope.md)
+and [the adapter format](docs/adapter-format.md) before interpreting a report.
+
+Consumers should check the report's `schema` identifier, currently
+`qcjudge.audit_report/2`, and its recorded protocol version. Local regression and
+property checks and audit replay tooling help verify implementation behavior.
+An independent expert-labelled adequacy benchmark and demonstrated compatibility
+across version changes remain M5 work. Passing the current tests does not establish
+the scientific truth of a conclusion.
+
 ## Development
 
-Requires Python 3.12 or newer. Confirm it before anything else: on Windows a bare `python` may
-be the Microsoft Store stub, which accepts the command and exits silently.
-
-```console
-python --version          # must report 3.12 or newer
-uv venv --python 3.12 .venv
-uv pip install --python .venv/Scripts/python.exe -e ".[dev]"
-.venv/Scripts/python -m pytest
-.venv/Scripts/python -m ruff check .
-.venv/Scripts/python -m mypy src/qcjudge
-```
+For editable installation, developer dependencies, checks, and cache redirection,
+see [the contribution guide](CONTRIBUTING.md). Ordinary users do not need the
+development extras. [The release checklist](docs/release-checklist.md) records the
+local wheel installation and candidate validation procedure.
 
 The real-ORCA tests skip themselves until the pinned corpus has been fetched with
 `python tools/fetch_benchmark_data.py`; nothing third-party is committed. See
 [the contribution guide](CONTRIBUTING.md) for cache redirection and other environment notes.
 
-CI runs the same three gates on Python 3.12 and 3.13 across Linux, macOS and Windows
-(`.github/workflows/ci.yml`). Formatting is deliberately not a gate; see D-33 in the plan.
+CI is configured for lint, strict type checking, tests, wheel construction, and an
+isolated installed-package smoke check on Python 3.12 and 3.13 across Linux, macOS
+and Windows (`.github/workflows/ci.yml`). Real remote execution is deferred.
+Formatting is deliberately not a gate; see D-33 in the plan.
 
 See [the architecture](docs/architecture.md), [scientific scope](docs/scientific-scope.md),
 and [the working plan](docs/v0.1-plan.md).
@@ -110,4 +213,3 @@ and [the working plan](docs/v0.1-plan.md).
 ## License
 
 BSD 3-Clause. See [LICENSE](LICENSE).
-
