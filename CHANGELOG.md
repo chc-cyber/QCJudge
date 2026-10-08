@@ -24,6 +24,9 @@ public API stabilizes.
   are excluded from source distributions.
 - The candidate remains a development preview; independent expert-labelled evaluation remains
   pending. The project owner resumed GitHub publication and actual remote CI on 2026-10-08.
+- Published the source to `chc-cyber/QCJudge`. The first actual GitHub Actions run passed lint/types
+  and all six Linux/macOS/Windows × Python 3.12/3.13 combinations. Each test job ran 658 passing
+  tests with two expected skips, verified all 12 real ORCA inputs and checked an installed wheel.
 - Default test temporary directories now sanitize path-valued parameter IDs using pytest's
   30-character basename policy. The full suite is verified without the scratch override.
 
@@ -267,8 +270,8 @@ reading the real output already on disk rather than the fixtures.
 
 ### Known issues
 
-- Local Git history exists. The workflow has not run on GitHub because no remote destination
-  is configured; configuration tests do not substitute for the first actual CI run.
+- Local and public Git history exist. The first actual GitHub CI matrix is verified; future
+  pushes still need their own successful checks, including real-corpus availability.
 - `ruff format` is deliberately not a gate. Formatting was never adopted and the tree is a mix of
   styles, so a format check would fail on arrival rather than guard anything. D-33 records this
   as a decision; `tests/test_ci_configuration.py` fails if a format gate is added without

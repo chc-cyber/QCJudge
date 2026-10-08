@@ -1,5 +1,7 @@
 # QCJudge
 
+[![CI](https://github.com/chc-cyber/QCJudge/actions/workflows/ci.yml/badge.svg)](https://github.com/chc-cyber/QCJudge/actions/workflows/ci.yml)
+
 QCJudge is an early-stage, open-source scientific evidence auditor for computational
 chemistry. It asks whether the available computational results are appropriate and
 sufficient evidence for a specified research question—not merely whether a job ran,
@@ -27,8 +29,12 @@ The current version is `0.1.0.dev2`, a pre-alpha development preview. A stable
 release has not been published. M0–M4 are complete; M5 hardening and release validation are in
 progress. Local tests, the pinned ORCA corpus, and an independently installed wheel
 have been checked on Windows with Python 3.12. The public repository is
-[chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge). Remote work has resumed;
-the first real CI run and the configured platform matrix await verification.
+[chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge). The
+[first GitHub Actions run](https://github.com/chc-cyber/QCJudge/actions/runs/37732697580)
+passed all seven jobs for commit `272d2de`: lint and strict types, plus six
+Python 3.12/3.13 combinations across Linux, macOS, and Windows. Each test job
+fetched the pinned corpus, ran the tests, built and installed the wheel, and
+passed the isolated CLI smoke check.
 
 The evidence kernel and the parser boundary are in place: a three-level reasoning chain from
 question through hypothesis and claim to evidence requirement, registered vocabularies instead
@@ -210,11 +216,13 @@ The real-ORCA tests skip themselves until the pinned corpus has been fetched wit
 `python tools/fetch_benchmark_data.py`; nothing third-party is committed. See
 [the contribution guide](CONTRIBUTING.md) for cache redirection and other environment notes.
 
-CI is configured for lint, strict type checking, tests, wheel construction, and an
-isolated installed-package smoke check on Python 3.12 and 3.13 across Linux, macOS
-and Windows (`.github/workflows/ci.yml`). The first remote run is awaiting
-verification; check [GitHub Actions](https://github.com/chc-cyber/QCJudge/actions)
-for its actual results.
+CI runs lint and strict types in a separate job, plus tests, wheel construction,
+installation, and an isolated CLI smoke check on Python 3.12 and 3.13 across
+Linux, macOS, and Windows (`.github/workflows/ci.yml`). The
+[first remote run](https://github.com/chc-cyber/QCJudge/actions/runs/37732697580)
+passed all seven jobs. Inspect [GitHub Actions](https://github.com/chc-cyber/QCJudge/actions)
+for the results of later revisions; a previous green run does not validate a
+changed source revision.
 Formatting is deliberately not a gate; see D-33 in the plan.
 
 See [the architecture](docs/architecture.md), [scientific scope](docs/scientific-scope.md),

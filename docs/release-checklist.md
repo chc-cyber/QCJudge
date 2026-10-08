@@ -7,8 +7,9 @@ wheel filename below when the package version changes.
 
 This procedure creates a reviewable candidate for
 [chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge). Remote work has resumed;
-the first real CI run is awaiting verification. Complete the local checks and
-the remote validation below before publishing the preview.
+the [first real CI run](https://github.com/chc-cyber/QCJudge/actions/runs/37732697580)
+passed all seven jobs at commit `272d2de`. Complete the local checks and validate
+the source revision intended for publication through CI below.
 
 ## 1. Obtain and identify the source
 
@@ -176,8 +177,10 @@ git rev-parse HEAD
 ## 6. Verify remote CI and publish the preview
 
 The public destination is [chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge).
-Local results do not complete the remote platform gate. Its first run is awaiting
-verification:
+The [first run](https://github.com/chc-cyber/QCJudge/actions/runs/37732697580) passed
+the lint/type job and all six test jobs, including their corpus fetch, pytest,
+wheel build, install, and isolated smoke steps. That validates commit `272d2de`;
+repeat the remote gate for the final source revision:
 
 1. Review the source revision and repository metadata destined for this
    repository, including the package and citation URLs.

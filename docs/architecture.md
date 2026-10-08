@@ -138,7 +138,8 @@ dependencies are not justified yet.
    protocol rewording does not churn the file while a key rename, reorder or removal still
    fails. Both live in `tests/test_golden_report.py` against `tests/data/`.
 7. Static typing, linting and tests are defined in CI across Python 3.12/3.13 and three operating
-   systems. The configuration is tested locally; its first actual GitHub execution is still pending.
+   systems. The first actual GitHub matrix passed all seven jobs on 2026-10-08, with the real
+   corpus and independently installed wheel checked in all six test jobs.
 8. Target-association, invalid quantity and multi-job end-to-end regressions cover the repaired
    false-SUPPORTED cases. Real-corpus tests remain optional when data cannot be fetched.
 
@@ -163,5 +164,6 @@ dependencies are not justified yet.
    false-SUPPORTED paths;
    report schema 2 records scope and researcher inputs. Facts reject nonfinite numbers and
    duplicate calculation/key pairs. Hypothesis tests exercise target graphs, values and ordering;
-   local audit bundles preserve raw inputs and compare replays. Actual remote CI, independent
-   expert cases and compatibility across released versions remain release work. LLM stays deferred.
+   local audit bundles preserve raw inputs and compare replays. Actual remote CI is verified;
+   independent expert cases and compatibility across released versions remain release work.
+   LLM stays deferred.

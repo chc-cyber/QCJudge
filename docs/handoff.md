@@ -1,6 +1,7 @@
 # QCJudge — agent handoff
 
-Updated 2026-10-08 after local preview preparation. M0-M4 are complete; M5 is in progress.
+Updated 2026-10-08 after public GitHub setup and the first successful remote CI matrix.
+M0-M4 are complete; M5 is in progress.
 The local measurements below include the real ORCA corpus. Where the plan and this file disagree,
 use this file's latest measurement and correct the plan.
 
@@ -183,12 +184,13 @@ objects.
 | Format | `ruff format --check` | **not a gate** — see D-33 |
 | Real corpus | `python tools/fetch_benchmark_data.py --verify` | all 12 pinned files verified |
 | Packaging | wheel build, independent install and isolated CLI check | `0.1.0.dev2` verified |
-| Repository | local Git on `main` | public `chc-cyber/QCJudge`; first remote CI verification in progress |
+| Remote CI | lint/types plus Linux/macOS/Windows on Python 3.12/3.13 | **7 jobs passed; all 6 test jobs: 658 passed, 2 skipped, 12/12 corpus files verified** |
+| Repository | `main` tracks `origin/main` | public [chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge) |
 
 Both skips are the root-facade cases in `tests/test_layering.py`: the package root has no declared
 import restrictions. The previous handoff incorrectly attributed them to missing corpus files.
-All real-corpus tests run in this measurement. This is Windows/Python 3.12 validation; it is not
-evidence that the full remote OS/Python matrix has passed.
+All real-corpus tests run in this measurement. The local run uses Windows/Python 3.12; the first
+actual remote run independently validates all six configured OS/Python combinations below.
 
 Current compatibility identifiers: package `0.1.0.dev2`, report `qcjudge.audit_report/2`, built-in
 protocols `1.1.1`, ORCA parser `0.4.0`, analysis adapter `0.2.0`. Schema 2 adds audit scope,
@@ -197,7 +199,7 @@ full researcher inputs and subject association fields; consumers of schema 1 nee
 The final wheel at `.test-scratch/dist-dev2/qcjudge-0.1.0.dev2-py3-none-any.whl` was installed
 in a fresh independent environment; `python -I tools/verify_installed_package.py` passed. All
 40 packaged Python modules match the final source byte-for-byte. Wheel SHA-256:
-`1e53e90383f2fb99635b08ed24c0bbf6f7361a94a431419f8b0732a552f41c47`. The scratch
+`50df0289476244f2d2a431b1b4b3e2e0aa17bb8dc653cb02d9d55aabc26185e9`. The scratch
 artifact is ignored and is not a published release.
 
 All four installed examples (five routes including CT without analysis) returned their documented
@@ -219,7 +221,7 @@ inputs, schema 1 or general released versions. Full measurements are saved local
 | M2.5 End-to-end status correctness | complete |
 | M3 CLI and reports | complete |
 | M4 Adapter seam | complete |
-| M5 Hardening and release | **in progress** — generated tests and local replay implemented; expert-labelled evaluation, full cross-version compatibility, remote CI and tag pending |
+| M5 Hardening and release | **in progress** — generated tests, local replay and actual CI verified; expert-labelled evaluation, full cross-version compatibility and stable tag pending |
 | M6 LLM layer | not started, deferred by design |
 
 ### 5.3 Substantive defects found and closed (D-23 … D-44)
@@ -285,7 +287,7 @@ The 2026-10-07 hardening closes D-34 through D-40 (see the plan for the register
 - Schema 2 records every supplied researcher condition, expert flag and association field, including
   inputs not consumed by a rule. The 2026-10-08 bundle tool adds raw-input/checksum replay below.
 - The CI strategy now uses a legal direct matrix; each test job builds and independently checks a
-  wheel. These steps are verified locally, while the actual remote matrix remains pending.
+  wheel. The first actual remote matrix passed on 2026-10-08 (D-13).
 
 The 2026-10-08 generated tests close D-41 through D-44:
 
@@ -383,14 +385,30 @@ invariants, not molecular accuracy.
 
 ## 6. Current difficulties
 
-### 6.1 First actual remote CI (D-13) — in progress
+### 6.1 Actual remote CI (D-13) — verified
 
 Git 2.53.0 is installed and the local repository is initialized on `main`. The pre-hardening
 M4 baseline is commit `22c0d25`; hardening is commit `284a2c0`, and local dev2 preparation is
 `1a73ee4`. The user deferred remote work on 2026-10-07 and resumed it on 2026-10-08, choosing
 a public repository. The confirmed destination is [chc-cyber/QCJudge](https://github.com/chc-cyber/QCJudge),
-with `origin` set to `https://github.com/chc-cyber/QCJudge.git`. The first push/actual CI matrix
-is being verified; do not describe configuration checks as completed remote validation.
+with `origin` set to `https://github.com/chc-cyber/QCJudge.git`. The first actual
+[CI run](https://github.com/chc-cyber/QCJudge/actions/runs/37732697580) passed on source commit
+`272d2dedb7080de152e795567827a0add08beed1`.
+
+| Job | Result | GitHub job ID |
+| --- | --- | --- |
+| Lint and strict types | success; 40 source files | 113165220985 |
+| Ubuntu / Python 3.12 | 658 passed, 2 skipped | 113165304484 |
+| Ubuntu / Python 3.13 | 658 passed, 2 skipped | 113165304488 |
+| macOS / Python 3.12 | 658 passed, 2 skipped | 113165304526 |
+| macOS / Python 3.13 | 658 passed, 2 skipped | 113165304508 |
+| Windows / Python 3.12 | 658 passed, 2 skipped | 113165304513 |
+| Windows / Python 3.13 | 658 passed, 2 skipped | 113165304459 |
+
+All six test-job logs confirm 12/12 pinned ORCA files fetched and checksummed, successful wheel
+build/install, and isolated package verification for dev2 / report schema 2 / TS protocol 1.1.1.
+The two skips are the expected root-facade checks, not missing corpus files. Actions emitted a
+nonblocking Node-runtime transition notice; the declared checkout/setup actions executed successfully.
 
 Ready locally:
 
@@ -404,9 +422,9 @@ Ready locally:
 - Real corpus fetch is optional (`continue-on-error`); unavailable network means corpus tests skip.
   A green build without the corpus is weaker than a run that includes it.
 
-**Configuration tests and a local wheel check are not a green remote matrix.** Inspect the first
-actual Actions run and fix any OS/Python-specific failures. Record corpus availability for each
-job. Do not tag stable `v0.1.0` merely because local validation or preview CI passed.
+**CI is implementation validation, not scientific ground truth.** Keep checking the actual Actions
+run for each future push and record corpus availability. Expert-labelled adequacy cases and the
+complete compatibility gate still need work before stable `v0.1.0`.
 
 The local sandbox created `.git` under a different Windows owner. Host Git required the exact
 `E:/QCJudge` path in `safe.directory`; no wildcard trust or global author identity was configured.
@@ -522,9 +540,9 @@ Ordered by value, with the honest reason for each.
    raw-input/checksum bundle foundation are implemented. Verify compatibility across real
    versions, including intended rule changes and report-schema migration; a few development
    example replays are not a completed compatibility benchmark.
-3. **D-13: complete actual remote CI verification.** Remote work has resumed for the public
-   `chc-cyber/QCJudge` destination. Inspect all six OS/Python combinations plus lint/types and
-   installed-wheel checks, recording whether the real corpus was available.
+3. **Maintain actual remote CI validation.** D-13 is closed by the first complete matrix. For
+   future pushes, inspect the public repository's Actions checks and corpus availability; keep
+   workflow/runtime maintenance separate from scientific validation claims.
 4. **Release review and `v0.1.0` tag.** Follow `docs/release-checklist.md`, checking dependency/
    attribution documentation, schema migration guidance and every M5 gate. Keep the current
    `0.1.0.dev2` development designation until those gates pass.
